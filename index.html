@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页：我的应用</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .app-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 250px;
+        }
+        
+        .app-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .app-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #444;
+        }
+        
+        .app-description {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            color: white;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            .apps-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>沈东旭的小应用</h1>
+            <p class="subtitle">精选工具与应用集合</p>
+        </header>
+        
+        <div class="apps-grid">
+            <a href="simple drawing.html" class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-paint-brush"></i>
+                </div>
+                <h2 class="app-title">简单鼠标绘图</h2>
+                <p class="app-description">使用鼠标自由绘制图形，支持保存为JPG图片</p>
+            </a>
+            
+            <div class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <h2 class="app-title">汇率计算器</h2>
+                <p class="app-description">汇率计到啱，使钱精明啲！</p>
+            </div>
+
+            <a href="world clock.html" class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h2 class="app-title">世界时钟</h2>
+                <p class="app-description">全球时间一眼睇晒</p>
+            </a>
+
+            <div class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-sticky-note"></i>
+                </div>
+                <h2 class="app-title">便签笔记</h2>
+                <p class="app-description">随时记录想法与待办事项，云端同步</p>
+            </div>
+            
+            <div class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-music"></i>
+                </div>
+                <h2 class="app-title">在线音乐</h2>
+                <p class="app-description">收听精选音乐电台与个性化推荐</p>
+            </div>
+            
+            <div class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <h2 class="app-title">休闲游戏</h2>
+                <p class="app-description">放松身心的休闲小游戏集合</p>
+            </div>
+            
+            <div class="app-card">
+                <div class="app-icon">
+                    <i class="fas fa-cloud-sun"></i>
+                </div>
+                <h2 class="app-title">天气预报</h2>
+                <p class="app-description">实时天气信息与未来预报</p>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>© 2023 我的应用 | 设计精美，体验流畅</p>
+    </footer>
+</body>
+</html>

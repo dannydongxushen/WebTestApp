@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圆盘时钟 - 带常住城市</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            overflow: hidden;
+            transition: background 0.5s ease;
+        }
+        
+        body.blank {
+            background: #f0f0f0;
+        }
+        
+        .container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+        }
+        
+        .location-info {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .location-info:hover {
+            transform: scale(1.05);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .home-city {
+            font-size: 1.1rem;
+            text-align: center;
+            margin-top: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+        }
+        
+        .home-city:hover {
+            transform: scale(1.05);
+            background: rgba(0, 0, 0, 0.4);
+        }
+        
+        .loading {
+            opacity: 0.8;
+        }
+        
+        .error {
+            color: #ff6b6b;
+        }
+        
+        .clock-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2), 
+                        0 0 0 10px rgba(255, 255, 255, 0.05),
+                        inset 0 0 25px rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .clock-container:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.3), 
+                        0 0 0 10px rgba(255, 255, 255, 0.1),
+                        inset 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+        
+        .clock-face {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8),
+                        0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* 刻度容器 */
+        .markings-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            top: 0;
+            left: 0;
+        }
+        
+        /* 小时刻度 */
+        .hour-mark {
+            position: absolute;
+            width: 4px;
+            height: 20px;
+            background: #fff;
+            left: calc(50% - 2px);
+            top: 5px;
+            transform-origin: center 135px;
+        }
+        
+        /* 半小时刻度 */
+        .half-hour-mark {
+            position: absolute;
+            width: 3px;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            left: calc(50% - 1.5px);
+            top: 7px;
+            transform-origin: center 133px;
+        }
+        
+        /* 分钟刻度 */
+        .minute-mark {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.6);
+            left: calc(50% - 1px);
+            top: 7px;
+            transform-origin: center 133px;
+        }
+        
+        /* 数字样式 */
+        .numbers {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            top: 0;
+            left: 0;
+        }
+        
+        .number {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            font-size: 18px;
+            color: #fff;
+            font-weight: bold;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* 指针样式 */
+        .hand {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center bottom;
+            border-radius: 4px 4px 2px 2px;
+            z-index: 10;
+        }
+        
+        .hour-hand {
+            width: 6px;
+            height: 70px;
+            background: #ff5e5e;
+            transform: translate(-50%, -100%);
+            box-shadow: 0 0 10px rgba(255, 94, 94, 0.7);
+        }
+        
+        .minute-hand {
+            width: 4px;
+            height: 100px;
+            background: #5eb3ff;
+            transform: translate(-50%, -100%);
+            box-shadow: 0 0 10px rgba(94, 179, 255, 0.7);
+        }
+        
+        .second-hand {
+            width: 2px;
+            height: 120px;
+            background: #5eff7a;
+            transform: translate(-50%, -100%);
+            box-shadow: 0 0 10px rgba(94, 255, 122, 0.7);
+        }
+        
+        /* 中心点 */
+        .center-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 11;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+        
+        /* 数字时间显示 */
+        .digital-time {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            text-align: center;
+        }
+        
+        .date-display {
+            font-size: 16px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+        
+        /* 标题样式 */
+        h1 {
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .modal h2 {
+            margin-bottom: 20px;
+            font-weight: 300;
+        }
+        
+        .modal input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        .modal button {
+            background: #5eb3ff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .modal button:hover {
+            background: #4a9ee6;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="blank">
+    <div class="container" id="mainContainer">
+        <h1>圆盘时钟 - 带常住城市</h1>
+        <div class="location-info" id="locationInfo">
+            <span class="loading">正在获取您的位置...</span>
+        </div>
+        <div class="digital-time">
+            <div id="time">00:00:00</div>
+            <div class="date-display" id="date">2023年1月1日 星期一</div>
+        </div>
+        <div class="clock-container" id="clockContainer">
+            <div class="clock-face">
+                <!-- 刻度标记 -->
+                <div class="markings-container" id="markings"></div>
+                
+                <!-- 数字 -->
+                <div class="numbers" id="numbers"></div>
+                
+                <!-- 指针 -->
+                <div class="hand hour-hand" id="hour-hand"></div>
+                <div class="hand minute-hand" id="minute-hand"></div>
+                <div class="hand second-hand" id="second-hand"></div>
+                
+                <!-- 中心点 -->
+                <div class="center-circle"></div>
+            </div>
+        </div>
+        <div class="home-city" id="homeCity" style="display: none;"></div>
+    </div>
+
+    <!-- 常住城市输入模态框 -->
+    <div class="modal" id="cityModal">
+        <div class="modal-content">
+            <h2>请输入您的常住城市</h2>
+            <input type="text" id="cityInput" placeholder="例如：北京、伦敦、纽约">
+            <button id="saveCity">保存</button>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentCity = '';
+        let homeCity = '';
+        let homeCityElement = null;
+        let homeCityTimezone = '';
+        
+        // 城市时区映射表（简化的映射，实际使用时需要更完整的数据）
+        const cityTimezones = {
+            '北京': 'Asia/Shanghai',
+            '上海': 'Asia/Shanghai',
+            '广州': 'Asia/Shanghai',
+            '深圳': 'Asia/Shanghai',
+            '香港': 'Asia/Hong_Kong',
+            '台北': 'Asia/Taipei',
+            '东京': 'Asia/Tokyo',
+            '首尔': 'Asia/Seoul',
+            '新加坡': 'Asia/Singapore',
+            '伦敦': 'Europe/London',
+            '巴黎': 'Europe/Paris',
+            '柏林': 'Europe/Berlin',
+            '罗马': 'Europe/Rome',
+            '莫斯科': 'Europe/Moscow',
+            '纽约': 'America/New_York',
+            '洛杉矶': 'America/Los_Angeles',
+            '芝加哥': 'America/Chicago',
+            '多伦多': 'America/Toronto',
+            '悉尼': 'Australia/Sydney',
+            '墨尔本': 'Australia/Melbourne'
+        };
+        
+        // 获取位置信息
+        async function getLocationInfo() {
+            const locationInfo = document.getElementById('locationInfo');
+            
+            try {
+                // 获取地理位置
+                const coords = await getCurrentPosition();
+                
+                // 获取城市名称
+                currentCity = await getCityName(coords.latitude, coords.longitude);
+                
+                // 更新位置信息显示
+                locationInfo.innerHTML = `<strong>${currentCity}当地时间</strong>`;
+                locationInfo.className = 'location-info';
+                
+                // 比较当前城市与常住城市
+                compareCities();
+                
+            } catch (error) {
+                console.error('位置获取失败:', error);
+                locationInfo.innerHTML = `<span class="error">${error}，显示默认时间</span>`;
+            }
+        }
+        
+        // 获取当前位置
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject('您的浏览器不支持地理位置服务');
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve(position.coords);
+                    },
+                    (error) => {
+                        let errorMessage = '无法获取您的位置信息';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = '用户拒绝了位置请求';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = '位置信息不可用';
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = '位置请求超时';
+                                break;
+                        }
+                        reject(errorMessage);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 60000
+                    }
+                );
+            });
+        }
+        
+        // 获取城市名称
+        async function getCityName(latitude, longitude) {
+            try {
+                const response = await fetch(
+                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`
+                );
+                const data = await response.json();
+                return data.city || data.locality || data.principalSubdivision || '当前位置';
+            } catch (error) {
+                console.error('获取城市名称失败:', error);
+                return '当前位置';
+            }
+        }
+        
+        // 比较当前城市与常住城市
+        function compareCities() {
+            if (!homeCity) return;
+            
+            // 如果城市相同，则不显示常住城市信息
+            if (currentCity === homeCity) {
+                document.getElementById('homeCity').style.display = 'none';
+            } else {
+                // 显示常住城市信息
+                homeCityElement = document.getElementById('homeCity');
+                homeCityElement.style.display = 'block';
+                updateHomeCityTime();
+            }
+        }
+        
+        // 更新常住城市时间
+        function updateHomeCityTime() {
+            if (!homeCity || !homeCityTimezone) return;
+            
+            try {
+                // 创建常住城市时区的日期对象
+                const homeTime = new Date().toLocaleString("en-US", {timeZone: homeCityTimezone});
+                const homeDate = new Date(homeTime);
+                
+                // 格式化日期和时间
+                const options = { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    weekday: 'long',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    timeZone: homeCityTimezone
+                };
+                
+                const dateString = homeDate.toLocaleDateString('zh-CN', options);
+                const timeString = homeDate.toLocaleTimeString('zh-CN', {timeZone: homeCityTimezone});
+                
+                // 更新显示
+                homeCityElement.innerHTML = `
+                    <div>常住城市: <strong>${homeCity}</strong></div>
+                    <div>${dateString}</div>
+                    <div>${timeString}</div>
+                `;
+            } catch (error) {
+                console.error('更新常住城市时间失败:', error);
+                homeCityElement.innerHTML = `
+                    <div>常住城市: <strong>${homeCity}</strong></div>
+                    <div>时间获取失败</div>
+                `;
+            }
+        }
+        
+        // 创建刻度标记
+        function createMarkings() {
+            const markings = document.getElementById('markings');
+            const numbers = document.getElementById('numbers');
+            
+            for (let i = 0; i < 60; i++) {
+                const angle = i * 6; // 每个刻度6度
+                
+                let mark;
+                
+                // 小时刻度（每5分钟一个，更粗更长）
+                if (i % 5 === 0) {
+                    mark = document.createElement('div');
+                    mark.className = 'hour-mark';
+                    
+                    // 创建小时数字
+                    const hour = i / 5 || 12;
+                    const number = document.createElement('div');
+                    number.className = 'number';
+                    number.textContent = hour;
+                    
+                    // 数字位置稍微向外
+                    const numAngle = angle * (Math.PI / 180);
+                    const numRadius = 105; // 调整数字位置，避免与刻度线重叠
+                    const numX = Math.sin(numAngle) * numRadius;
+                    const numY = -Math.cos(numAngle) * numRadius;
+                    
+                    number.style.left = `calc(50% + ${numX}px)`;
+                    number.style.top = `calc(50% + ${numY}px)`;
+                    numbers.appendChild(number);
+                } 
+                // 半小时刻度（30分钟位置，中等粗细和长度）
+                else if (i === 30) {
+                    mark = document.createElement('div');
+                    mark.className = 'half-hour-mark';
+                }
+                // 分钟刻度（更细更短）
+                else {
+                    mark = document.createElement('div');
+                    mark.className = 'minute-mark';
+                }
+                
+                // 设置刻度线旋转
+                if (mark) {
+                    mark.style.transform = `rotate(${angle}deg)`;
+                    markings.appendChild(mark);
+                }
+            }
+        }
+        
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            
+            // 获取时间组件
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            
+            // 计算指针角度
+            const secondAngle = seconds * 6 + milliseconds * 0.006;
+            const minuteAngle = minutes * 6 + seconds * 0.1;
+            const hourAngle = (hours % 12) * 30 + minutes * 0.5;
+            
+            // 更新指针
+            document.getElementById('second-hand').style.transform = `translate(-50%, -100%) rotate(${secondAngle}deg)`;
+            document.getElementById('minute-hand').style.transform = `translate(-50%, -100%) rotate(${minuteAngle}deg)`;
+            document.getElementById('hour-hand').style.transform = `translate(-50%, -100%) rotate(${hourAngle}deg)`;
+            
+            // 更新数字时间
+            const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            document.getElementById('time').textContent = timeString;
+            
+            // 更新日期
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            const dateString = now.toLocaleDateString('zh-CN', options);
+            document.getElementById('date').textContent = dateString;
+            
+            // 更新常住城市时间
+            if (homeCity && currentCity !== homeCity && homeCityElement) {
+                updateHomeCityTime();
+            }
+        }
+        
+        // 显示城市输入模态框
+        function showCityModal() {
+            const modal = document.getElementById('cityModal');
+            const input = document.getElementById('cityInput');
+            
+            // 设置默认值为当前常住城市
+            input.value = homeCity || '';
+            
+            // 显示模态框
+            modal.style.display = 'flex';
+            
+            // 聚焦输入框
+            input.focus();
+        }
+        
+        // 保存常住城市
+        function saveHomeCity() {
+            const input = document.getElementById('cityInput');
+            const newCity = input.value.trim();
+            
+            if (newCity) {
+                homeCity = newCity;
+                
+                // 获取城市对应的时区
+                homeCityTimezone = cityTimezones[homeCity] || 'UTC';
+                
+                // 保存到localStorage
+                localStorage.setItem('homeCity', homeCity);
+                localStorage.setItem('homeCityTimezone', homeCityTimezone);
+                
+                // 隐藏模态框
+                document.getElementById('cityModal').style.display = 'none';
+                
+                // 显示主容器
+                document.getElementById('mainContainer').style.display = 'flex';
+                
+                // 更改背景
+                document.body.classList.remove('blank');
+                
+                // 比较城市
+                compareCities();
+                
+                // 显示成功消息
+                alert(`常住城市已设置为: ${homeCity}`);
+            } else {
+                alert('请输入有效的城市名称');
+            }
+        }
+        
+        // 初始化
+        async function init() {
+            createMarkings();
+            updateTime();
+            
+            // 检查是否有保存的常住城市
+            homeCity = localStorage.getItem('homeCity');
+            homeCityTimezone = localStorage.getItem('homeCityTimezone');
+            
+            // 如果有保存的常住城市，直接显示主界面
+            if (homeCity && homeCityTimezone) {
+                document.getElementById('mainContainer').style.display = 'flex';
+                document.body.classList.remove('blank');
+                document.getElementById('cityModal').style.display = 'none';
+                
+                // 启动位置获取
+                await getLocationInfo();
+            } else {
+                // 如果没有保存的常住城市，显示输入模态框
+                showCityModal();
+            }
+            
+            // 添加事件监听器
+            document.getElementById('clockContainer').addEventListener('click', showCityModal);
+            document.getElementById('locationInfo').addEventListener('click', showCityModal);
+            document.getElementById('homeCity').addEventListener('click', showCityModal);
+            document.getElementById('saveCity').addEventListener('click', saveHomeCity);
+            
+            // 回车键保存
+            document.getElementById('cityInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveHomeCity();
+                }
+            });
+            
+            // 点击模态框外部关闭
+            document.getElementById('cityModal').addEventListener('click', (e) => {
+                if (e.target.id === 'cityModal') {
+                    // 不允许关闭，必须输入城市
+                    // document.getElementById('cityModal').style.display = 'none';
+                }
+            });
+            
+            // 每秒更新一次
+            setInterval(updateTime, 1000);
+        }
+        
+        // 页面加载完成后初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
