@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "/api/translate/*"
+  to = "https://fanyi-api.baidu.com/api/trans/vip/translate/:splat"
+  status = 200
+  force = true
