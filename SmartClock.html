@@ -92,6 +92,7 @@
             position: relative;
             width: 280px;
             height: 280px;
+            margin-top: 10px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
@@ -136,10 +137,10 @@
         /* 小时刻度 */
         .hour-mark {
             position: absolute;
-            width: 4px;
-            height: 18px;
+            width: 2px;
+            height: 12px;
             background: #fff;
-            left: calc(50% - 2px);
+            left: calc(50% - 1px);
             top: 5px;
             transform-origin: center 120px;
         }
@@ -158,12 +159,12 @@
         /* 分钟刻度 */
         .minute-mark {
             position: absolute;
-            width: 2px;
-            height: 9px;
+            width: 1.5px;
+            height: 7px;
             background: rgba(255, 255, 255, 0.6);
             left: calc(50% - 1px);
             top: 7px;
-            transform-origin: center 118px;
+            transform-origin: center 120px;
         }
         
         /* 数字样式 */
@@ -240,6 +241,7 @@
         .digital-time {
             font-size: 24px;
             font-weight: 300;
+            margin-bottom: 20px;
             letter-spacing: 2px;
             background: rgba(0, 0, 0, 0.5);
             padding: 10px 20px;
@@ -947,7 +949,7 @@
                     
                     // 数字位置稍微向外
                     const numAngle = angle * (Math.PI / 180);
-                    const numRadius = 95; // 调整数字位置，避免与刻度线重叠
+                    const numRadius = 75; // 调整数字位置，避免与刻度线重叠
                     const numX = Math.sin(numAngle) * numRadius;
                     const numY = -Math.cos(numAngle) * numRadius;
                     
