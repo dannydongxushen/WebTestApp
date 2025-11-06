@@ -275,7 +275,7 @@
             width: 100%;
             height: 100%;
             background: rgba(255, 255, 255, 0.95);
-            z-index: 1000;
+            z-index: 100;
             justify-content: center;
             align-items: center;
             overflow-y: auto;
@@ -654,10 +654,11 @@
                 
                 // 更新位置信息显示
                 locationInfo.innerHTML = `<strong>位置获取成功</strong>`;
+                
                 setTimeout(() => {
                     locationInfo.style.display = 'none';
                     locationInfo.textContent = '';
-                }, 3000);
+                }, 500);
 
                 locationInfo.className = 'location-info';
                 currentCityTitle.textContent = `当前位置: ${currentCity}`;
@@ -731,7 +732,13 @@
                 cityInput.value = cityName;
                 
             } catch (error) {
-                alert(`无法获取当前位置: ${error}`);
+                locationInfo.innerHTML = `<strong>无法获取当前位置: ${error}</strong>`;
+                locationInfo.style.display = 'flex';
+                setTimeout(() => {
+                    locationInfo.style.display = 'none';
+                    locationInfo.textContent = '';
+                }, 1000);
+                //alert(`无法获取当前位置: ${error}`);
             }
         }
         
@@ -740,20 +747,45 @@
             const input = document.getElementById('cityInput');
             const newCity = input.value.trim();
             
-            if (!newCity) {
-                alert('请输入城市名称');
+            if (!newCity) 
+            {   
+                if (!homeCity)
+                {             
+                    locationInfo.innerHTML = `<strong>请输入城市名称</strong>`;
+                    locationInfo.style.display = 'flex';
+                    setTimeout(() => {
+                        locationInfo.style.display = 'none';
+                        locationInfo.textContent = '';
+                    }, 1000);
+                    //alert('请输入城市名称');
+                    return;
+                }
+                else
+                {
+                    cityModal.style.display = 'none';
+                    return;
+                }
+            }
+            else if (newCity === homeCity) {
+                // 如果城市未更改，直接关闭模态框
+                cityModal.style.display = 'none';
                 return;
             }
-            
+
             try {
                 // 检测语言并处理
                 let englishCityName;
                 const isChinese = /[\u4e00-\u9fa5]/.test(newCity);
-                
+                console.log('isChinese 的值:', isChinese);
+                console.log('newCity 的值:', newCity);
+
                 if (isChinese) {
                     englishCityName = await translateCityName(newCity);
-                } else {
+                } 
+                else 
+                {
                     englishCityName = newCity;
+                                        
                 }
                 
                 // 通过OpenStreetMap获取城市信息
@@ -771,7 +803,7 @@
                 }
                 
                 // 保存城市信息
-                homeCity = newCity;
+                homeCity = newCity.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
                 homeCityTimezone = timezoneInfo;
                 homeCityCoords = { lat: cityInfo.lat, lng: cityInfo.lng };
                 
@@ -793,7 +825,13 @@
                 await getLocationInfo();
                 
             } catch (error) {
-                alert(`错误: ${error.message}`);
+                locationInfo.innerHTML = `<strong>错误: 城市名不正确</strong>`;
+                locationInfo.style.display = 'flex';
+                setTimeout(() => {
+                    locationInfo.style.display = 'none';
+                    locationInfo.textContent = '';
+                }, 1000);
+                //alert(`错误: ${error.message}`);
             }
         }
         
