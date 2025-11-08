@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商品标签信息提取 - 硅基流动版本</title>
+    <title>商品标签信息提取 - DeepSeek版本</title>
     <style>
         body {
             font-family: 'Microsoft YaHei', sans-serif;
@@ -98,11 +98,22 @@
             text-align: center;
             color: #666;
         }
+        .debug-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>商品标签信息提取 - 硅基流动版本</h1>
+        <h1>商品标签信息提取 - DeepSeek版本</h1>
         
         <div class="input-group">
             <label for="textInput">商品标签文本：</label>
@@ -120,8 +131,9 @@
             const textInput = document.getElementById('textInput');
             const resultDiv = document.getElementById('result');
             
-            // Netlify函数URL
-            const NETLIFY_FUNCTION_URL = 'https://dxshenwebtestapp.netlify.app/.netlify/functions/siliconflow-proxy';
+            // DeepSeek API配置
+            const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+            const DEEPSEEK_API_KEY = 'sk-aae2a862b3ab4c498fa91f73c76ef9d3';
             
             analyzeBtn.addEventListener('click', async function() {
                 const text = textInput.value.trim();
@@ -139,66 +151,78 @@
                 resultDiv.innerHTML = '<p>正在分析商品标签，请稍候...</p>';
                 
                 try {
-                    // 准备请求数据
+                    // 准备请求数据 - 使用更稳定的模型和格式
                     const requestData = {
-                        model: "deepseek-ai/DeepSeek-R1",
+                        model: "deepseek-chat", // 使用chat模型，更稳定
                         messages: [
                             {
+                                role: "system",
+                                content: "你是一个商品标签分析专家，请严格按照要求的JSON格式返回分析结果。"
+                            },
+                            {
                                 role: "user",
-                                content: `你是一个商品标签分析专家。请从以下商品标签文本中精确提取以下信息：商品名称、规格、价格、货币单位。
+                                content: `请从以下商品标签文本中精确提取信息，并以JSON格式返回，只包含以下四个字段：商品名称、规格、价格（仅数字）、货币单位。
                                 
-                                重要提示：
-                                1. 关于货币符号：特别要注意区别人民币和日元，要根据上下文来推测是人民币还是日元。同样的符号"$"可能代表美元，也可能代表港币和新台币。
-                                2. 关于规格：请去除规格中的不必要符号，例如开头的"/"符号。所以"/500克"应该提取为"500克"。
-                                3. 关于价格：价格字段只包含数字部分，不包含货币符号。
-                                4. 关于货币单位：请根据上下文推断正确的货币单位。在中国商品标签中，通常是人民币。
+                                要求：
+                                1. 规格字段请去除开头的"/"符号
+                                2. 价格字段只包含数字部分
+                                3. 货币单位根据上下文推断
                                 
-                                请以JSON格式返回，包含以下四个字段：
-                                - 商品名称
-                                - 规格
-                                - 价格（仅数字）
-                                - 货币单位
-                                
-                                如果某个信息不存在，该字段值为空字符串。
                                 格式示例：{"商品名称": "橘子", "规格": "500克", "价格": "4.96", "货币单位": "人民币"}
                                 
                                 需要分析的文本：${text}`
                             }
                         ],
                         temperature: 0.1,
-                        max_tokens: 1000
+                        max_tokens: 1000,
+                        stream: false,
+                        response_format: { type: "json_object" } // 强制返回JSON格式
                     };
                     
-                    // 调用Netlify函数
-                    const response = await fetch(NETLIFY_FUNCTION_URL, {
+                    console.log("发送请求数据:", requestData);
+                    
+                    // 直接调用DeepSeek API
+                    const response = await fetch(DEEPSEEK_API_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
                         },
                         body: JSON.stringify(requestData)
                     });
                     
+                    console.log("响应状态:", response.status, response.statusText);
+                    
                     if (!response.ok) {
-                        throw new Error(`网络请求失败: ${response.status} ${response.statusText}`);
+                        const errorText = await response.text();
+                        console.error("API错误响应:", errorText);
+                        throw new Error(`DeepSeek API请求失败: ${response.status} ${response.statusText}`);
                     }
                     
                     const data = await response.json();
                     
-                    console.log("API响应:", data); // 调试用
+                    console.log("完整的API响应:", data);
                     
                     analyzeBtn.disabled = false;
                     analyzeBtn.textContent = '分析文本';
                     
-                    // 获取响应文本
+                    // 处理响应数据 - 更健壮的处理方式
                     let responseText = "";
+                    let extractedInfo = null;
                     
-                    // 处理响应数据
-                    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-                        responseText = data.choices[0].message.content;
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        responseText = data.choices[0].message.content || "";
+                        console.log("提取的响应文本:", responseText);
                     } else if (data.error) {
-                        throw new Error(data.error);
+                        throw new Error(`DeepSeek API错误: ${data.error.message || JSON.stringify(data.error)}`);
                     } else {
-                        throw new Error('API返回了无法识别的格式');
+                        // 如果标准结构不存在，尝试直接使用响应数据
+                        console.warn("非标准响应结构，尝试直接解析:", data);
+                        if (data.content) {
+                            responseText = data.content;
+                        } else {
+                            throw new Error('DeepSeek API返回了无法识别的格式');
+                        }
                     }
                     
                     // 尝试解析返回的JSON
@@ -206,46 +230,67 @@
                         // 从响应中提取JSON部分
                         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
-                            const extractedInfo = JSON.parse(jsonMatch[0]);
-                            
-                            // 检查是否成功提取到任何信息
-                            const hasInfo = extractedInfo['商品名称'] || extractedInfo['规格'] || extractedInfo['价格'];
-                            
-                            if (hasInfo) {
-                                // 显示提取的信息
-                                resultDiv.className = 'success';
-                                resultDiv.innerHTML = `
-                                    <h3>提取到的信息：</h3>
-                                    <div class="info-item">
-                                        <span class="info-label">商品名称：</span>
-                                        <span class="info-value">${extractedInfo['商品名称'] || '<span class="no-info">未识别</span>'}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">规格：</span>
-                                        <span class="info-value">${extractedInfo['规格'] || '<span class="no-info">未识别</span>'}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">价格：</span>
-                                        <span class="info-value">${extractedInfo['价格'] || '<span class="no-info">未识别</span>'}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">货币单位：</span>
-                                        <span class="info-value">${extractedInfo['货币单位'] || '<span class="no-info">未识别</span>'}</span>
-                                    </div>
-                                `;
-                            } else {
-                                // 没有提取到任何信息
-                                resultDiv.className = 'error';
-                                resultDiv.innerHTML = '<strong>提示：</strong> 未能从文本中提取到有效信息，请确认输入的是商品标签文本';
-                            }
+                            extractedInfo = JSON.parse(jsonMatch[0]);
+                            console.log("解析后的JSON:", extractedInfo);
                         } else {
-                            // 如果无法解析JSON，尝试从普通文本中提取信息
-                            parseTextResponse(responseText);
+                            // 如果没有找到JSON，尝试直接解析整个响应
+                            try {
+                                extractedInfo = JSON.parse(responseText);
+                            } catch (e) {
+                                throw new Error('API响应不包含有效的JSON格式');
+                            }
                         }
-                        resultDiv.style.display = 'block';
+                        
+                        // 检查是否成功提取到任何信息
+                        const hasInfo = extractedInfo && (
+                            extractedInfo['商品名称'] || 
+                            extractedInfo['规格'] || 
+                            extractedInfo['价格'] ||
+                            extractedInfo['商品名称'] !== undefined ||
+                            extractedInfo['规格'] !== undefined ||
+                            extractedInfo['价格'] !== undefined
+                        );
+                        
+                        if (hasInfo) {
+                            // 显示提取的信息
+                            resultDiv.className = 'success';
+                            resultDiv.innerHTML = `
+                                <h3>提取到的信息：</h3>
+                                <div class="info-item">
+                                    <span class="info-label">商品名称：</span>
+                                    <span class="info-value">${extractedInfo['商品名称'] || '<span class="no-info">未识别</span>'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">规格：</span>
+                                    <span class="info-value">${extractedInfo['规格'] || '<span class="no-info">未识别</span>'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">价格：</span>
+                                    <span class="info-value">${extractedInfo['价格'] || '<span class="no-info">未识别</span>'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">货币单位：</span>
+                                    <span class="info-value">${extractedInfo['货币单位'] || '<span class="no-info">未识别</span>'}</span>
+                                </div>
+                                <div class="debug-info">
+                                    <strong>调试信息：</strong><br>
+                                    原始响应: ${JSON.stringify(data, null, 2)}
+                                </div>
+                            `;
+                        } else {
+                            // 没有提取到任何信息
+                            resultDiv.className = 'error';
+                            resultDiv.innerHTML = `
+                                <strong>提示：</strong> 未能从文本中提取到有效信息<br>
+                                <div class="debug-info">
+                                    API响应: ${JSON.stringify(data, null, 2)}
+                                </div>
+                            `;
+                        }
                     } catch (e) {
                         // JSON解析失败，尝试从普通文本中提取信息
-                        parseTextResponse(responseText);
+                        console.error('JSON解析错误:', e);
+                        parseTextResponse(responseText, data);
                     }
                 } catch (error) {
                     analyzeBtn.disabled = false;
@@ -255,7 +300,10 @@
                     resultDiv.className = 'error';
                     resultDiv.innerHTML = `
                         <strong>错误：</strong> ${error.message}<br>
-                        <small>请检查网络连接，然后重试</small>
+                        <small>请检查API密钥和网络连接，然后重试</small>
+                        <div class="debug-info">
+                            详细错误: ${error.stack || error.toString()}
+                        </div>
                     `;
                     resultDiv.style.display = 'block';
                     console.error('分析错误:', error);
@@ -263,62 +311,41 @@
             });
             
             // 从普通文本响应中提取信息的函数
-            function parseTextResponse(responseText) {
-                console.log("解析文本响应:", responseText); // 调试用
+            function parseTextResponse(responseText, rawData) {
+                console.log("解析文本响应:", responseText);
                 
                 // 简单的文本解析逻辑
                 let productName = '';
                 let specification = '';
                 let price = '';
-                let currency = '';
+                let currency = '人民币'; // 默认货币单位
                 
-                // 尝试从文本中提取商品名称
-                const productMatch = responseText.match(/商品名称[：:]\s*([^,\n\r]+)/);
-                if (productMatch) {
-                    productName = productMatch[1].trim();
-                } else {
-                    // 如果没有明确标记，尝试从原文本中提取
-                    const originalText = textInput.value;
-                    const originalProductMatch = originalText.match(/商品[：:]\s*([^,\n\r]+)/);
-                    if (originalProductMatch) {
-                        productName = originalProductMatch[1].trim();
-                    }
-                }
-                
-                // 尝试从文本中提取规格
-                const specMatch = responseText.match(/规格[：:]\s*([^,\n\r]+)/);
-                if (specMatch) {
-                    specification = specMatch[1].trim();
-                } else {
-                    // 如果没有明确标记，尝试从原文本中提取
-                    const originalText = textInput.value;
-                    const originalSpecMatch = originalText.match(/计价单位[：:]\s*([^,\n\r]+)/);
-                    if (originalSpecMatch) {
-                        // 去除开头的"/"符号
-                        specification = originalSpecMatch[1].trim().replace(/^\//, '');
-                    }
-                }
-                
-                // 尝试从文本中提取价格
-                const priceMatch = responseText.match(/价格[：:]\s*([^,\n\r]+)/);
-                if (priceMatch) {
-                    price = priceMatch[1].trim();
-                } else {
-                    // 如果没有明确标记，尝试从原文本中提取价格
-                    const originalText = textInput.value;
-                    const pricePattern = /[¥￥$Y]\s*(\d+\.?\d*)/g;
-                    const prices = originalText.match(pricePattern);
-                    if (prices && prices.length > 0) {
-                        // 提取数字部分
-                        const numMatch = prices[0].match(/\d+\.?\d*/);
-                        if (numMatch) {
-                            price = numMatch[0].trim();
-                        }
-                    }
-                }
-                
-                // 尝试识别货币单位
                 const originalText = textInput.value;
+                
+                // 从原文本中提取商品名称
+                const originalProductMatch = originalText.match(/商品[：:]\s*([^,\n\r]+)/);
+                if (originalProductMatch) {
+                    productName = originalProductMatch[1].trim();
+                }
+                
+                // 从原文本中提取规格
+                const originalSpecMatch = originalText.match(/计价单位[：:]\s*\/?([^,\n\r]+)/);
+                if (originalSpecMatch) {
+                    specification = originalSpecMatch[1].trim().replace(/^\//, '');
+                }
+                
+                // 从原文本中提取价格
+                const pricePattern = /[Y¥]\s*(\d+\.?\d*)/g;
+                const prices = originalText.match(pricePattern);
+                if (prices && prices.length > 0) {
+                    // 提取数字部分
+                    const numMatch = prices[0].match(/\d+\.?\d*/);
+                    if (numMatch) {
+                        price = numMatch[0].trim();
+                    }
+                }
+                
+                // 识别货币单位
                 if (originalText.includes('¥') || originalText.includes('Y')) {
                     currency = '人民币';
                 } else if (originalText.includes('$')) {
@@ -334,11 +361,16 @@
                 // 如果从文本中也没提取到信息，使用原始文本
                 if (!productName && !specification && !price) {
                     resultDiv.className = 'error';
-                    resultDiv.innerHTML = '<strong>提示：</strong> 未能从文本中提取到有效信息，请确认输入的是商品标签文本';
+                    resultDiv.innerHTML = `
+                        <strong>提示：</strong> 未能从文本中提取到有效信息<br>
+                        <div class="debug-info">
+                            原始响应: ${JSON.stringify(rawData, null, 2)}
+                        </div>
+                    `;
                 } else {
                     resultDiv.className = 'success';
                     resultDiv.innerHTML = `
-                        <h3>提取到的信息：</h3>
+                        <h3>提取到的信息（本地解析）：</h3>
                         <div class="info-item">
                             <span class="info-label">商品名称：</span>
                             <span class="info-value">${productName || '<span class="no-info">未识别</span>'}</span>
@@ -354,6 +386,9 @@
                         <div class="info-item">
                             <span class="info-label">货币单位：</span>
                             <span class="info-value">${currency || '<span class="no-info">未识别</span>'}</span>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 12px;">
+                            <strong>注意：</strong> 当前使用本地解析，部分复杂信息可能无法准确识别
                         </div>
                     `;
                 }

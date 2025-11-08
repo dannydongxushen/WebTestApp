@@ -4,12 +4,7 @@
   status = 200
   force = true
 
-[functions]
-  # 指定您的 Netlify Functions 目录，必须与您函数文件所在的目录一致
-  directory = "netlify/functions"
-  # 建议使用 esbuild 作为 Node.js 函数的打包器
-  node_bundler = "esbuild"
-
-  # 为你的硅基流动代理函数单独设置超时
-[functions.siliconflow-proxy]
-  timeout = 10 # 单位：秒，免费账户通常最高10秒，付费计划可设更高
+[[redirects]]
+  from = "/api/youdao"
+  to = "/.netlify/edge-functions/youdao-proxy"
+  status = 200
