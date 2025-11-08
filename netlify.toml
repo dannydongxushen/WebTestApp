@@ -6,5 +6,5 @@
 
 [[redirects]]
   from = "/api/youdao"
-  to = "/.netlify/edge-functions/youdao-proxy"
+  to = "/.netlify/functions/youdao-proxy"
   status = 200
