@@ -3,3 +3,9 @@
   to = "https://fanyi-api.baidu.com/api/trans/vip/translate/:splat"
   status = 200
   force = true
+
+[functions]
+  # 指定您的 Netlify Functions 目录，必须与您函数文件所在的目录一致
+  directory = "netlify/functions"
+  # 建议使用 esbuild 作为 Node.js 函数的打包器
+  node_bundler = "esbuild"
