@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCR图片文字识别 - Netlify代理版</title>
+    <title>OCR图片文字识别</title>
     <style>
         * {
             box-sizing: border-box;
@@ -17,55 +17,64 @@
             color: #333;
             line-height: 1.6;
             padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             padding: 30px;
+            width: 100%;
         }
         
         h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             color: #2c3e50;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 15px;
         }
         
-        .description {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #7f8c8d;
+        .language-selector {
+            margin-bottom: 20px;
         }
         
-        .upload-area {
-            border: 2px dashed #3498db;
+        .language-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .language-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .upload-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
             border-radius: 8px;
-            padding: 40px 20px;
-            text-align: center;
-            margin-bottom: 30px;
+            font-size: 18px;
             cursor: pointer;
             transition: all 0.3s ease;
-            background-color: #f8fafc;
+            text-align: center;
+            margin-bottom: 20px;
         }
         
-        .upload-area:hover {
-            background-color: #e8f4fc;
-            border-color: #2980b9;
-        }
-        
-        .upload-area i {
-            font-size: 48px;
-            color: #3498db;
-            margin-bottom: 15px;
-        }
-        
-        .upload-area p {
-            margin: 10px 0;
+        .upload-button:hover {
+            background-color: #2980b9;
         }
         
         #fileInput {
@@ -74,14 +83,13 @@
         
         .preview-area {
             display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-            margin-bottom: 30px;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
         }
         
         .image-preview, .result-area {
-            flex: 1;
-            min-width: 300px;
+            width: 100%;
         }
         
         .image-preview img {
@@ -93,18 +101,16 @@
         }
         
         h2 {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: #2c3e50;
-            font-size: 1.4rem;
-            border-left: 4px solid #3498db;
-            padding-left: 10px;
+            font-size: 1.2rem;
         }
         
         .result-area {
             background: #f8fafc;
             border-radius: 8px;
-            padding: 20px;
-            min-height: 200px;
+            padding: 15px;
+            min-height: 150px;
         }
         
         #resultText {
@@ -112,66 +118,20 @@
             line-height: 1.8;
         }
         
-        .button-group {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        
-        #recognizeBtn {
-            background: #3498db;
-            color: white;
-        }
-        
-        #recognizeBtn:hover:not(:disabled) {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        #resetBtn {
-            background: #e74c3c;
-            color: white;
-        }
-        
-        #resetBtn:hover {
-            background: #c0392b;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
         .loading {
             display: none;
             text-align: center;
-            margin: 20px 0;
+            margin: 15px 0;
         }
         
         .loading-spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 30px;
+            height: 30px;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
+            margin: 0 auto 10px;
         }
         
         @keyframes spin {
@@ -179,158 +139,30 @@
             100% { transform: rotate(360deg); }
         }
         
-        .error-message {
-            color: #e74c3c;
-            background: #fde8e6;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 15px 0;
-            display: none;
-        }
-        
-        .success-message {
-            color: #27ae60;
-            background: #e6f7ee;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 15px 0;
-            display: none;
-        }
-        
-        .debug-area {
-            background: #2c3e50;
-            color: #ecf0f1;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            max-height: 300px;
-            overflow-y: auto;
-            display: none;
-        }
-        
-        .debug-area h3 {
-            color: #3498db;
-            margin-bottom: 10px;
-        }
-        
-        .debug-toggle {
-            background: #34495e;
-            color: #ecf0f1;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        
-        .debug-toggle:hover {
-            background: #3d566e;
-        }
-        
-        .debug-line {
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-        
-        .debug-timestamp {
-            color: #7f8c8d;
-            margin-right: 10px;
-        }
-        
-        .debug-info {
-            color: #3498db;
-        }
-        
-        .debug-error {
-            color: #e74c3c;
-        }
-        
-        .debug-success {
-            color: #2ecc71;
-        }
-        
-        .instructions {
-            background: #fff8e1;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 0 6px 6px 0;
-        }
-        
-        .instructions h3 {
-            margin-bottom: 10px;
-            color: #ff9800;
-        }
-        
-        .instructions ul {
-            padding-left: 20px;
-        }
-        
-        .instructions li {
-            margin-bottom: 8px;
-        }
-        
-        .proxy-info {
-            background: #e8f4fc;
-            border-left: 4px solid #3498db;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 0 6px 6px 0;
-        }
-        
-        .proxy-info h3 {
-            margin-bottom: 10px;
-            color: #2980b9;
-        }
-        
         @media (max-width: 768px) {
-            .preview-area {
-                flex-direction: column;
-            }
-            
             .container {
-                padding: 15px;
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>OCR图片文字识别 - Netlify代理版</h1>
-        <p class="description">通过Netlify代理调用有道OCR服务，解决CORS跨域问题</p>
+        <h1>OCR图片文字识别</h1>
         
-        <div class="proxy-info">
-            <h3>代理配置说明</h3>
-            <p>此页面使用Netlify Edge Function代理请求，解决了直接调用有道API的CORS跨域问题。</p>
+        <div class="language-selector">
+            <label for="languageSelect">选择文字类型：</label>
+            <select id="languageSelect">
+                <option value="chs">简体中文</option>
+                <option value="cht">繁体中文</option>
+                <option value="eng">英文</option>
+            </select>
         </div>
         
-        <div class="instructions">
-            <h3>使用说明：</h3>
-            <ul>
-                <li>支持上传JPG、PNG、BMP格式的图片</li>
-                <li>图片大小建议不超过2MB</li>
-                <li>识别结果支持中英文等多种语言</li>
-                <li>识别完成后可复制结果文本</li>
-            </ul>
-        </div>
-        
-        <div class="upload-area" id="uploadArea">
-            <i>📁</i>
-            <p>点击选择图片或直接拖拽图片到此处</p>
-            <p class="file-types">支持 JPG, PNG, BMP 格式</p>
-            <input type="file" id="fileInput" accept="image/jpeg, image/png, image/bmp">
-        </div>
-        
-        <div class="error-message" id="errorMessage"></div>
-        <div class="success-message" id="successMessage"></div>
-        
-        <button class="debug-toggle" id="debugToggle">显示调试信息</button>
-        <div class="debug-area" id="debugArea">
-            <h3>调试信息</h3>
-            <div id="debugContent"></div>
-        </div>
+        <button class="upload-button" id="uploadButton">
+            选择图片
+        </button>
+        <input type="file" id="fileInput" accept="image/jpeg, image/png, image/bmp">
         
         <div class="preview-area">
             <div class="image-preview">
@@ -348,92 +180,26 @@
             <div class="loading-spinner"></div>
             <p>正在识别中，请稍候...</p>
         </div>
-        
-        <div class="button-group">
-            <button id="recognizeBtn" disabled>开始识别</button>
-            <button id="resetBtn">重置</button>
-        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // 获取DOM元素
             const fileInput = document.getElementById('fileInput');
-            const uploadArea = document.getElementById('uploadArea');
+            const uploadButton = document.getElementById('uploadButton');
             const previewImage = document.getElementById('previewImage');
-            const recognizeBtn = document.getElementById('recognizeBtn');
-            const resetBtn = document.getElementById('resetBtn');
             const resultText = document.getElementById('resultText');
             const loadingIndicator = document.getElementById('loadingIndicator');
-            const errorMessage = document.getElementById('errorMessage');
-            const successMessage = document.getElementById('successMessage');
-            const debugToggle = document.getElementById('debugToggle');
-            const debugArea = document.getElementById('debugArea');
-            const debugContent = document.getElementById('debugContent');
+            const languageSelect = document.getElementById('languageSelect');
             
-            // 应用配置
-            const APP_ID = '68a7a31d629d52e4';
-            const APP_KEY = 'Oa1fWMINWANBamI687S8HbWEc1Rtisn5';
-            // 使用Netlify代理路径，而不是直接调用有道API
-            const PROXY_PATH = '/api/youdao';
+            // OCR.space API密钥
+            const API_KEY = 'K83999141488957';
             
             let currentImageFile = null;
-            let debugVisible = false;
             
-            // 调试信息输出函数
-            function addDebugMessage(message, type = 'info') {
-                const timestamp = new Date().toLocaleTimeString();
-                const debugLine = document.createElement('div');
-                debugLine.className = 'debug-line';
-                
-                const timestampSpan = document.createElement('span');
-                timestampSpan.className = 'debug-timestamp';
-                timestampSpan.textContent = `[${timestamp}]`;
-                
-                const messageSpan = document.createElement('span');
-                messageSpan.className = `debug-${type}`;
-                messageSpan.textContent = message;
-                
-                debugLine.appendChild(timestampSpan);
-                debugLine.appendChild(messageSpan);
-                debugContent.appendChild(debugLine);
-                
-                // 自动滚动到底部
-                debugArea.scrollTop = debugArea.scrollHeight;
-            }
-            
-            // 切换调试信息显示
-            debugToggle.addEventListener('click', function() {
-                debugVisible = !debugVisible;
-                debugArea.style.display = debugVisible ? 'block' : 'none';
-                debugToggle.textContent = debugVisible ? '隐藏调试信息' : '显示调试信息';
-            });
-            
-            // 上传区域点击事件
-            uploadArea.addEventListener('click', function() {
+            // 上传按钮点击事件
+            uploadButton.addEventListener('click', function() {
                 fileInput.click();
-            });
-            
-            // 拖放功能
-            uploadArea.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '#e8f4fc';
-                uploadArea.style.borderColor = '#2980b9';
-            });
-            
-            uploadArea.addEventListener('dragleave', function() {
-                uploadArea.style.backgroundColor = '#f8fafc';
-                uploadArea.style.borderColor = '#3498db';
-            });
-            
-            uploadArea.addEventListener('drop', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '#f8fafc';
-                uploadArea.style.borderColor = '#3498db';
-                
-                if (e.dataTransfer.files.length) {
-                    handleImageFile(e.dataTransfer.files[0]);
-                }
             });
             
             // 文件选择变化事件
@@ -448,15 +214,13 @@
                 // 检查文件类型
                 const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
                 if (!validTypes.includes(file.type)) {
-                    showError('请上传JPG、PNG或BMP格式的图片文件');
-                    addDebugMessage(`文件类型错误: ${file.type}`, 'error');
+                    alert('请上传JPG、PNG或BMP格式的图片文件');
                     return;
                 }
                 
                 // 检查文件大小（限制为2MB）
                 if (file.size > 2 * 1024 * 1024) {
-                    showError('图片大小不能超过2MB');
-                    addDebugMessage(`文件大小超过限制: ${(file.size / 1024 / 1024).toFixed(2)}MB`, 'error');
+                    alert('图片大小不能超过2MB');
                     return;
                 }
                 
@@ -467,114 +231,59 @@
                 reader.onload = function(e) {
                     previewImage.src = e.target.result;
                     previewImage.style.display = 'block';
-                    recognizeBtn.disabled = false;
-                    hideError();
-                    hideSuccess();
-                    resultText.textContent = '识别结果将显示在这里...';
-                    addDebugMessage(`图片加载成功: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`, 'success');
+                    resultText.textContent = '正在识别中...';
+                    
+                    // 自动开始识别
+                    recognizeText(currentImageFile);
                 };
                 reader.readAsDataURL(file);
             }
             
-            // 识别按钮点击事件
-            recognizeBtn.addEventListener('click', function() {
-                if (!currentImageFile) {
-                    showError('请先选择图片');
-                    return;
-                }
-                
-                recognizeText(currentImageFile);
-            });
-            
-            // 重置按钮点击事件
-            resetBtn.addEventListener('click', function() {
-                resetAll();
-            });
-            
             // 调用OCR API识别文字
             async function recognizeText(imageFile) {
                 showLoading();
-                hideError();
-                hideSuccess();
-                addDebugMessage('开始OCR识别过程...', 'info');
-                addDebugMessage(`使用Netlify代理路径: ${PROXY_PATH}`, 'info');
                 
                 try {
                     // 将图片转换为Base64
-                    addDebugMessage('正在转换图片为Base64...', 'info');
                     const base64Image = await fileToBase64(imageFile);
                     // 去掉Base64前缀
                     const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-                    addDebugMessage(`Base64编码完成，长度: ${pureBase64.length}`, 'success');
                     
-                    // 准备请求参数
-                    const salt = generateUUID();
-                    const curtime = Math.floor(Date.now() / 1000).toString();
-                    const input = calculateInput(pureBase64);
-                    const sign = await calculateSign(input, salt, curtime);
+                    // 获取选择的语言
+                    const language = languageSelect.value;
                     
-                    addDebugMessage(`生成请求参数 - Salt: ${salt}, Curtime: ${curtime}`, 'info');
+                    // 构建请求参数
+                    const formData = new FormData();
+                    formData.append('base64Image', `data:image/jpeg;base64,${pureBase64}`);
+                    formData.append('apikey', API_KEY);
+                    formData.append('language', language);
+                    formData.append('isOverlayRequired', 'false');
+                    formData.append('OCREngine', '2'); // 使用更精确的引擎
                     
-                    // 构建请求体
-                    const requestBody = new URLSearchParams();
-                    requestBody.append('img', pureBase64);
-                    requestBody.append('langType', 'zh-CHS'); // 中文识别
-                    requestBody.append('detectType', '10012');
-                    requestBody.append('imageType', '1');
-                    requestBody.append('appKey', APP_ID);
-                    requestBody.append('salt', salt);
-                    requestBody.append('sign', sign);
-                    requestBody.append('docType', 'json');
-                    requestBody.append('signType', 'v3');
-                    requestBody.append('curtime', curtime);
-                    requestBody.append('angle', '0'); // 不进行角度识别
-                    
-                    addDebugMessage('发送OCR API请求到Netlify代理...', 'info');
-                    addDebugMessage(`请求路径: ${PROXY_PATH}`, 'info');
-                    
-                    // 发送API请求到Netlify代理
-                    const startTime = Date.now();
-                    const response = await fetch(PROXY_PATH, {
+                    // 发送API请求到OCR.space
+                    const response = await fetch('https://api.ocr.space/parse/image', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: requestBody
+                        body: formData
                     });
                     
-                    const endTime = Date.now();
-                    addDebugMessage(`API响应时间: ${endTime - startTime}ms`, 'info');
-                    
                     if (!response.ok) {
-                        throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                        throw new Error(`HTTP错误: ${response.status}`);
                     }
                     
-                    addDebugMessage('API请求成功，解析响应数据...', 'success');
-                    
                     const data = await response.json();
-                    addDebugMessage(`API响应: ${JSON.stringify(data).substring(0, 200)}...`, 'info');
                     
                     // 处理API响应
-                    if (data.errorCode === '0') {
+                    if (data.IsErroredOnProcessing) {
+                        throw new Error(`API错误: ${data.ErrorMessage}`);
+                    } else {
                         // 提取识别结果
                         const text = extractTextFromOCRResult(data);
-                        resultText.textContent = text;
-                        showSuccess('文字识别成功！');
-                        addDebugMessage(`识别成功，提取到 ${text.length} 个字符`, 'success');
-                    } else {
-                        throw new Error(`API返回错误: ${data.errorCode} - ${data.errorMsg || '未知错误'}`);
+                        resultText.textContent = text || '未识别到文字内容';
                     }
                     
                 } catch (error) {
                     console.error('OCR识别错误:', error);
-                    addDebugMessage(`识别错误: ${error.message}`, 'error');
-                    showError(`识别过程中出现错误: ${error.message}`);
-                    
-                    // 添加更多调试信息
-                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                        addDebugMessage('这可能是因为代理路径配置不正确或网络连接问题', 'error');
-                        addDebugMessage('请检查Netlify Edge Function是否正确部署', 'error');
-                    }
+                    resultText.textContent = `识别过程中出现错误: ${error.message}`;
                 } finally {
                     hideLoading();
                 }
@@ -584,26 +293,11 @@
             function extractTextFromOCRResult(ocrData) {
                 let extractedText = '';
                 
-                if (ocrData.Result && ocrData.Result.regions) {
-                    ocrData.Result.regions.forEach(region => {
-                        if (region.lines) {
-                            region.lines.forEach(line => {
-                                if (line.text) {
-                                    extractedText += line.text + '\n';
-                                } else if (line.words) {
-                                    line.words.forEach(word => {
-                                        if (word.word) {
-                                            extractedText += word.word;
-                                        }
-                                    });
-                                    extractedText += '\n';
-                                }
-                            });
-                        }
-                    });
+                if (ocrData.ParsedResults && ocrData.ParsedResults.length > 0) {
+                    extractedText = ocrData.ParsedResults[0].ParsedText;
                 }
                 
-                return extractedText || '未识别到文字内容';
+                return extractedText;
             }
             
             // 将文件转换为Base64
@@ -616,92 +310,15 @@
                 });
             }
             
-            // 生成UUID
-            function generateUUID() {
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                    const r = Math.random() * 16 | 0;
-                    const v = c === 'x' ? r : (r & 0x3 | 0.8);
-                    return v.toString(16);
-                });
-            }
-            
-            // 计算input参数
-            function calculateInput(base64Str) {
-                if (base64Str.length <= 20) {
-                    return base64Str;
-                } else {
-                    return base64Str.substring(0, 10) + base64Str.length + base64Str.substring(base64Str.length - 10);
-                }
-            }
-            
-            // 计算签名
-            async function calculateSign(input, salt, curtime) {
-                const str = APP_ID + input + salt + curtime + APP_KEY;
-                addDebugMessage(`签名原始字符串: ${APP_ID} + [input] + ${salt} + ${curtime} + [APP_KEY]`, 'info');
-                
-                // 使用SHA256哈希算法
-                const encoder = new TextEncoder();
-                const data = encoder.encode(str);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                
-                addDebugMessage(`生成签名: ${hashHex.substring(0, 16)}...`, 'info');
-                return hashHex;
-            }
-            
-            // 显示错误信息
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-            }
-            
-            // 隐藏错误信息
-            function hideError() {
-                errorMessage.style.display = 'none';
-            }
-            
-            // 显示成功信息
-            function showSuccess(message) {
-                successMessage.textContent = message;
-                successMessage.style.display = 'block';
-            }
-            
-            // 隐藏成功信息
-            function hideSuccess() {
-                successMessage.style.display = 'none';
-            }
-            
             // 显示加载指示器
             function showLoading() {
                 loadingIndicator.style.display = 'block';
-                recognizeBtn.disabled = true;
             }
             
             // 隐藏加载指示器
             function hideLoading() {
                 loadingIndicator.style.display = 'none';
-                recognizeBtn.disabled = false;
             }
-            
-            // 重置所有内容
-            function resetAll() {
-                fileInput.value = '';
-                previewImage.style.display = 'none';
-                previewImage.src = '#';
-                resultText.textContent = '识别结果将显示在这里...';
-                recognizeBtn.disabled = true;
-                currentImageFile = null;
-                hideError();
-                hideSuccess();
-                addDebugMessage('系统已重置', 'info');
-            }
-            
-            // 初始调试信息
-            addDebugMessage('OCR识别系统已初始化', 'success');
-            addDebugMessage(`应用ID: ${APP_ID.substring(0, 8)}...`, 'info');
-            addDebugMessage(`使用Netlify代理路径: ${PROXY_PATH}`, 'info');
-            addDebugMessage('系统准备就绪，可以上传图片进行识别', 'success');
         });
     </script>
 </body>
