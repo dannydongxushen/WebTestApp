@@ -9,3 +9,7 @@
   directory = "netlify/functions"
   # 建议使用 esbuild 作为 Node.js 函数的打包器
   node_bundler = "esbuild"
+
+  # 为你的硅基流动代理函数单独设置超时
+[functions.siliconflow-proxy]
+  timeout = 10 # 单位：秒，免费账户通常最高10秒，付费计划可设更高
