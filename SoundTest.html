@@ -3,476 +3,800 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniMax API 语音合成测试</title>
+    <title>语音识别测试 - 本地测试版</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
         }
-
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
             background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-            color: #333;
             min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
-
+        
         .container {
-            max-width: 600px;
-            width: 100%;
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            color: white;
-            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
             text-align: center;
         }
-
-        .header h1 {
-            font-size: 2em;
+        
+        h1 {
+            color: #2c3e50;
             margin-bottom: 10px;
+            font-size: 28px;
         }
-
-        .header p {
-            opacity: 0.9;
+        
+        .description {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            line-height: 1.5;
         }
-
-        .content {
-            padding: 25px;
-        }
-
-        .test-section {
+        
+        .input-group {
             margin-bottom: 25px;
+            text-align: left;
         }
-
-        .test-text {
-            background: #f8f9fa;
-            border: 2px solid #e1e8ed;
-            border-radius: 10px;
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        #resultText {
+            width: 100%;
+            height: 120px;
             padding: 15px;
-            margin-bottom: 15px;
-            font-size: 18px;
-            text-align: center;
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: vertical;
+            transition: border-color 0.3s;
         }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
+        
+        #resultText:focus {
+            outline: none;
+            border-color: #3498db;
         }
-
-        button {
-            flex: 1;
-            padding: 12px;
+        
+        .recorder-container {
+            margin: 30px 0;
+        }
+        
+        .voice-btn {
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            color: white;
             border: none;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+        }
+        
+        .voice-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.6);
+        }
+        
+        .voice-btn.recording {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .voice-btn.playback {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .wave-container {
+            margin: 20px auto;
+            width: 200px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .wave-bar {
+            width: 4px;
+            height: 20px;
+            background: #3498db;
+            margin: 0 2px;
+            border-radius: 2px;
+            animation: wave 1.2s infinite ease-in-out;
+        }
+        
+        .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+        .wave-bar:nth-child(6) { animation-delay: 0.5s; }
+        .wave-bar:nth-child(7) { animation-delay: 0.6s; }
+        .wave-bar:nth-child(8) { animation-delay: 0.7s; }
+        
+        @keyframes wave {
+            0%, 100% { transform: scaleY(0.5); }
+            50% { transform: scaleY(2); }
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
             border-radius: 8px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .status.recording {
+            background: #e8f6f3;
+            color: #27ae60;
+            display: block;
+        }
+        
+        .status.processing {
+            background: #e8f4fd;
+            color: #2980b9;
+            display: block;
+        }
+        
+        .status.error {
+            background: #fdeaea;
+            color: #e74c3c;
+            display: block;
+        }
+        
+        .status.success {
+            background: #e8f6f3;
+            color: #27ae60;
+            display: block;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            display: block;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
             transition: all 0.3s ease;
-        }
-
-        .generate-btn {
-            background: #27ae60;
-            color: white;
-        }
-
-        .generate-btn:hover:not(:disabled) {
-            background: #219a52;
-            transform: translateY(-2px);
-        }
-
-        .play-btn {
-            background: #3498db;
-            color: white;
-        }
-
-        .play-btn:hover:not(:disabled) {
-            background: #2980b9;
-            transform: translateY(-2px);
-        }
-
-        button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .audio-section {
             margin-top: 20px;
+            display: none;
         }
-
-        .audio-section h3 {
+        
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.6);
+        }
+        
+        .audio-player {
+            margin-top: 20px;
+            width: 100%;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .info {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+            text-align: left;
+        }
+        
+        .info h3 {
             margin-bottom: 10px;
             color: #2c3e50;
         }
-
-        .audio-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        
+        .info ul {
+            padding-left: 20px;
         }
-
-        audio {
-            width: 100%;
-            border-radius: 8px;
+        
+        .info li {
+            margin-bottom: 8px;
         }
-
-        .status {
-            padding: 10px;
-            border-radius: 8px;
+        
+        .recording-info {
             margin-top: 15px;
-            font-weight: 500;
-            text-align: center;
+            font-size: 14px;
+            color: #7f8c8d;
         }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 15px;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
+        
         .debug-info {
             margin-top: 20px;
             padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #666;
+            background: #2c3e50;
+            color: white;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
             display: none;
         }
-
+        
         .debug-toggle {
-            text-align: center;
+            background: #34495e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 12px;
+            cursor: pointer;
             margin-top: 10px;
         }
-
-        .debug-toggle button {
-            background: transparent;
-            color: #3498db;
-            border: 1px solid #3498db;
-            padding: 8px 15px;
+        
+        .debug-toggle:hover {
+            background: #2c3e50;
+        }
+        
+        .local-mode {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #fff3cd;
+            color: #856404;
             font-size: 14px;
         }
-
-        .voice-selection {
-            margin-bottom: 15px;
-        }
-
-        select {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
+        
+        .browser-recognition-btn {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
             font-size: 16px;
-            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(155, 89, 182, 0.4);
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .browser-recognition-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(155, 89, 182, 0.6);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🔊 MiniMax API 语音合成测试</h1>
-            <p>测试API连接与音频生成功能</p>
+        <h1>语音识别测试 - 本地测试版</h1>
+        <p class="description">支持浏览器原生语音识别和百度API识别</p>
+        
+        <div class="local-mode" id="localMode">
+            当前为本地测试模式 - 使用浏览器原生语音识别
         </div>
-
-        <div class="content">
-            <div class="test-section">
-                <div class="test-text" id="testText">
-                    点击"生成测试音频"按钮开始测试
-                </div>
-
-                <div class="voice-selection">
-                    <label for="voiceSelect">选择测试音色：</label>
-                    <select id="voiceSelect">
-                        <option value="female-shaonv">少女音色</option>
-                        <option value="female-yujie">御姐音色</option>
-                        <option value="female-chengshu">成熟女性</option>
-                        <option value="male-qn-qingse">青年男声</option>
-                        <option value="male-qn-jingying">精英男声</option>
-                        <option value="presenter_female">女主持人</option>
-                    </select>
-                </div>
-
-                <div class="controls">
-                    <button class="generate-btn" id="generateBtn">生成测试音频</button>
-                    <button class="play-btn" id="playBtn" disabled>播放音频</button>
-                </div>
-
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>正在生成音频，请稍候...</p>
-                </div>
-
-                <div id="statusMessage"></div>
+        
+        <div class="input-group">
+            <label for="resultText">识别结果：</label>
+            <textarea id="resultText" placeholder="识别结果将显示在这里..."></textarea>
+        </div>
+        
+        <div class="recorder-container">
+            <button id="voiceBtn" class="voice-btn">🎤</button>
+            
+            <div class="wave-container" id="waveContainer" style="display: none;">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
             </div>
-
-            <div class="audio-section">
-                <h3>音频播放器</h3>
-                <div class="audio-controls">
-                    <audio id="audioPlayer" controls style="display: none;"></audio>
-                </div>
-            </div>
-
-            <div class="debug-toggle">
-                <button id="toggleDebug">显示调试信息</button>
-            </div>
-
-            <div class="debug-info" id="debugInfo">
-                <h4>调试信息</h4>
-                <div id="debugContent"></div>
-            </div>
+            
+            <div id="statusMessage" class="status"></div>
+            
+            <audio id="audioPlayer" class="audio-player" controls></audio>
+            
+            <button id="submitBtn" class="submit-btn">提交语音进行识别</button>
+            
+            <button id="browserRecognitionBtn" class="browser-recognition-btn">使用浏览器语音识别</button>
+            
+            <div class="recording-info" id="recordingInfo"></div>
+            
+            <button class="debug-toggle" id="debugToggle">显示调试信息</button>
+            
+            <div class="debug-info" id="debugInfo"></div>
+        </div>
+        
+        <div class="info">
+            <h3>使用说明：</h3>
+            <ul>
+                <li>点击麦克风按钮开始录音（本地录音）</li>
+                <li>录音完成后，可以点击播放按钮重听录音</li>
+                <li>点击"使用浏览器语音识别"进行实时语音识别</li>
+                <li>识别结果将显示在上方文本框中</li>
+                <li>点击"显示调试信息"查看API请求详情</li>
+                <li>此版本支持本地测试，无需Netlify Functions</li>
+            </ul>
         </div>
     </div>
 
     <script>
-        // API配置
+        // 配置
         const CONFIG = {
-            apiKey: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJEb25neHUgU2hlbiIsIlVzZXJOYW1lIjoiVmlydHVhbCBWaWV3IFRlY2hub2xvZ3kiLCJBY2NvdW50IjoiIiwiU3ViamVjdElEIjoiMTg5MDEzNjYyNDY1MDUyMzU2NyIsIlBob25lIjoiIiwiR3JvdXBJRCI6IjE4OTAxMzY2MjQ2NDIxMzQ5NTkiLCJQYWdlTmFtZSI6IiIsIk1haWwiOiJkYW5ueS5kb25neHUuc2hlbkBnbWFpbC5jb20iLCJDcmVhdGVUaW1lIjoiMjAyNS0xMS0yMyAxNzoxNzoyMiIsIlRva2VuVHlwZSI6MSwiaXNzIjoibWluaW1heCJ9.ncL7Hh0Iz6lYrF9vmSZnQ0up2m_mps4OwjZ_RDRz6KaQpSZh5MzWHkMoNAOKIlPt2qI1BJOJLVWRv7J02LFXxH1BwEIHj5Z62sJ5LySsds9E3kMl2Pf0H9F7FN2j8Cm6-SGBXjVQWF97qZDpobXi6wy4kbfvxVaM7OGbEJNoqRlj2EAlkHDHWw1WO_4Hh4p9w_py-Jao533OtSqRu1cmsg442BcrU7jFL03WUE0uhJqTDfEDdVsRGT8RICDP8rAC3E6i7T03KAJ9Et70sPQBdYDYMQjrp3m44PZ1apOnhIKAY8J23E_Ezq2NeyYimBdIxBc3wAoOxuvd1RVcAUEUkw',
-            groupId: '1890136624642134959'
+            // 在本地模式下不使用代理
+            tokenProxyUrl: '/api/baidu-token',
+            speechProxyUrl: '/api/baidu-speech',
+            isLocalMode: window.location.protocol === 'file:'
         };
-
-        // 测试句子库
-        const TEST_SENTENCES = [
-            "今天的阳光格外明媚，让人心情愉悦。",
-            "科技改变生活，创新引领未来。",
-            "学习新知识是人生最大的乐趣之一。",
-            "健康的生活方式是幸福的基础。",
-            "友谊是人生中最宝贵的财富之一。",
-            "努力工作，享受生活，平衡是关键。",
-            "读书可以开阔视野，增长智慧。",
-            "旅行让我们见识世界，丰富人生。",
-            "音乐能够触动心灵，带来宁静。",
-            "美食是生活中不可或缺的享受。"
-        ];
-
+        
+        // DOM元素
+        const voiceBtn = document.getElementById('voiceBtn');
+        const waveContainer = document.getElementById('waveContainer');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultText = document.getElementById('resultText');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const submitBtn = document.getElementById('submitBtn');
+        const recordingInfo = document.getElementById('recordingInfo');
+        const debugInfo = document.getElementById('debugInfo');
+        const debugToggle = document.getElementById('debugToggle');
+        const localMode = document.getElementById('localMode');
+        const browserRecognitionBtn = document.getElementById('browserRecognitionBtn');
+        
         // 全局变量
-        let currentAudioUrl = null;
-        let debugVisible = false;
-
-        // 显示状态消息
-        function showStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('statusMessage');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-            
-            // 自动清除成功和信息类消息
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    statusDiv.innerHTML = '';
-                }, 5000);
-            }
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let currentAudioBlob = null;
+        let accessToken = '';
+        let recordingStartTime = 0;
+        let recordingTimer = null;
+        let recognition = null;
+        let isBrowserRecognitionActive = false;
+        
+        // 调试日志
+        function debugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            debugInfo.appendChild(logEntry);
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+            console.log(`[DEBUG] ${message}`);
         }
-
-        // 显示调试信息
-        function showDebugInfo(info) {
-            const debugDiv = document.getElementById('debugContent');
-            debugDiv.innerHTML = info;
+        
+        // 显示状态信息
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            debugLog(`状态: ${message} (${type})`);
         }
-
-        // 切换调试信息显示
-        function toggleDebugInfo() {
-            const debugInfo = document.getElementById('debugInfo');
-            const toggleBtn = document.getElementById('toggleDebug');
+        
+        // 更新录音时长显示
+        function updateRecordingTime() {
+            if (!isRecording) return;
             
-            debugVisible = !debugVisible;
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
             
-            if (debugVisible) {
-                debugInfo.style.display = 'block';
-                toggleBtn.textContent = '隐藏调试信息';
-            } else {
-                debugInfo.style.display = 'none';
-                toggleBtn.textContent = '显示调试信息';
-            }
+            recordingInfo.textContent = `录音时长: ${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
-
-        // 获取随机测试句子
-        function getRandomSentence() {
-            const randomIndex = Math.floor(Math.random() * TEST_SENTENCES.length);
-            return TEST_SENTENCES[randomIndex];
-        }
-
-        // 生成测试音频
-        async function generateTestAudio() {
-            const generateBtn = document.getElementById('generateBtn');
-            const playBtn = document.getElementById('playBtn');
-            const loading = document.getElementById('loading');
-            const testText = document.getElementById('testText');
-            const audioPlayer = document.getElementById('audioPlayer');
-
-            // 重置状态
-            generateBtn.disabled = true;
-            playBtn.disabled = true;
-            loading.style.display = 'block';
-            
-            if (currentAudioUrl) {
-                URL.revokeObjectURL(currentAudioUrl);
-                currentAudioUrl = null;
+        
+        // 初始化浏览器语音识别
+        function initBrowserRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showStatus('您的浏览器不支持语音识别功能', 'error');
+                return false;
             }
             
-            audioPlayer.style.display = 'none';
-
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'zh-CN';
+            
+            recognition.onstart = function() {
+                isBrowserRecognitionActive = true;
+                showStatus('正在聆听中...请开始说话', 'recording');
+                browserRecognitionBtn.textContent = '停止语音识别';
+            };
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                resultText.value = transcript;
+                showStatus('识别完成', 'success');
+                debugLog(`浏览器语音识别结果: ${transcript}`);
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('语音识别错误:', event.error);
+                showStatus(`语音识别错误: ${event.error}`, 'error');
+                stopBrowserRecognition();
+            };
+            
+            recognition.onend = function() {
+                stopBrowserRecognition();
+            };
+            
+            return true;
+        }
+        
+        // 开始浏览器语音识别
+        function startBrowserRecognition() {
+            if (!recognition) {
+                if (!initBrowserRecognition()) {
+                    return;
+                }
+            }
+            
             try {
-                // 获取随机测试句子
-                const testSentence = getRandomSentence();
-                testText.textContent = `测试句子: "${testSentence}"`;
+                recognition.start();
+            } catch (error) {
+                console.error('开始语音识别失败:', error);
+                showStatus('开始语音识别失败，请重试', 'error');
+            }
+        }
+        
+        // 停止浏览器语音识别
+        function stopBrowserRecognition() {
+            isBrowserRecognitionActive = false;
+            browserRecognitionBtn.textContent = '使用浏览器语音识别';
+            
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    // 忽略停止时的错误
+                }
+            }
+        }
+        
+        // 切换浏览器语音识别状态
+        function toggleBrowserRecognition() {
+            if (isBrowserRecognitionActive) {
+                stopBrowserRecognition();
+            } else {
+                startBrowserRecognition();
+            }
+        }
+        
+        // 通过Netlify Functions获取百度语音识别的访问令牌
+        async function getBaiduAccessToken() {
+            if (CONFIG.isLocalMode) {
+                throw new Error('本地模式下无法使用百度语音识别API');
+            }
+            
+            try {
+                debugLog("通过Netlify Functions获取百度访问令牌...");
+                const url = CONFIG.tokenProxyUrl;
+                debugLog(`请求URL: ${url}`);
                 
-                showStatus('正在调用MiniMax API生成音频...', 'info');
-                
-                // 获取选择的音色
-                const voiceId = document.getElementById('voiceSelect').value;
-                
-                // 调用MiniMax API
-                const apiResponse = await fetch('https://api.minimaxi.com/v1/t2a_v2', {
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${CONFIG.apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'speech-02-turbo',
-                        text: testSentence,
-                        voice_setting: {
-                            voice_id: voiceId,
-                            speed: 1.0,
-                            vol: 1.0,
-                            pitch: 0
-                        }
-                    })
+                        'Content-Type': 'application/json'
+                    }
                 });
-
-                // 记录API响应状态
-                showDebugInfo(`API响应状态: ${apiResponse.status} ${apiResponse.statusText}`);
-
-                if (!apiResponse.ok) {
-                    const errorText = await apiResponse.text();
-                    showDebugInfo(`错误响应: ${errorText}`);
-                    throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}`);
-                }
-
-                // 处理音频响应
-                const audioBlob = await apiResponse.blob();
                 
-                if (audioBlob.size === 0) {
-                    throw new Error('API返回的音频数据为空');
+                debugLog(`令牌请求响应状态: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
                 }
                 
-                showDebugInfo(`音频数据大小: ${(audioBlob.size / 1024).toFixed(2)} KB`);
-
-                currentAudioUrl = URL.createObjectURL(audioBlob);
-                audioPlayer.src = currentAudioUrl;
-                audioPlayer.style.display = 'block';
+                const data = await response.json();
+                debugLog(`令牌响应数据: ${JSON.stringify(data)}`);
                 
-                // 等待音频加载完成
-                await new Promise((resolve, reject) => {
-                    audioPlayer.onloadeddata = resolve;
-                    audioPlayer.onerror = () => reject(new Error('音频加载失败'));
-                    
-                    // 设置超时
-                    setTimeout(() => {
-                        reject(new Error('音频加载超时'));
-                    }, 10000);
-                });
-
-                showStatus('音频生成成功！可以点击播放按钮测试。', 'success');
-                playBtn.disabled = false;
-
+                if (data.access_token) {
+                    accessToken = data.access_token;
+                    debugLog(`成功获取访问令牌: ${accessToken.substring(0, 20)}...`);
+                    return data.access_token;
+                } else {
+                    throw new Error(`无法获取百度语音识别访问令牌: ${data.error_description || '未知错误'}`);
+                }
             } catch (error) {
-                console.error('生成音频时出错:', error);
-                showStatus(`生成失败: ${error.message}`, 'error');
-                testText.textContent = '生成失败，请检查API密钥和网络连接';
-            } finally {
-                generateBtn.disabled = false;
-                loading.style.display = 'none';
+                console.error('获取百度语音识别令牌失败:', error);
+                debugLog(`获取令牌失败: ${error.message}`);
+                showStatus('获取访问令牌失败，请检查网络连接', 'error');
+                throw error;
             }
         }
-
-        // 播放音频
-        function playAudio() {
-            const audioPlayer = document.getElementById('audioPlayer');
-            const playBtn = document.getElementById('playBtn');
-            
-            if (currentAudioUrl && audioPlayer.src) {
-                audioPlayer.play().then(() => {
-                    playBtn.textContent = '播放中...';
-                    showStatus('音频播放中...', 'info');
-                }).catch(error => {
-                    showStatus(`播放失败: ${error.message}`, 'error');
+        
+        // 开始录音
+        async function startRecording() {
+            try {
+                debugLog("开始录音...");
+                // 请求麦克风权限
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true
+                    } 
                 });
                 
-                // 监听播放结束
-                audioPlayer.onended = function() {
-                    playBtn.textContent = '播放音频';
-                    showStatus('音频播放完成', 'success');
+                debugLog("麦克风访问权限已获取");
+                
+                // 创建MediaRecorder实例
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                audioChunks = [];
+                
+                // 收集音频数据
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
                 };
-            } else {
-                showStatus('音频未准备好，请先生成音频', 'error');
+                
+                // 录音停止时的处理
+                mediaRecorder.onstop = async () => {
+                    debugLog("录音已停止，处理录音数据...");
+                    // 创建音频Blob
+                    currentAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    debugLog(`录音Blob大小: ${currentAudioBlob.size} 字节`);
+                    
+                    // 创建播放URL
+                    const audioURL = URL.createObjectURL(currentAudioBlob);
+                    audioPlayer.src = audioURL;
+                    
+                    // 停止所有音频轨道
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // 更新UI
+                    updateUIAfterRecording();
+                };
+                
+                // 开始录音
+                mediaRecorder.start(100); // 每100ms收集一次数据
+                isRecording = true;
+                recordingStartTime = Date.now();
+                
+                // 开始计时器
+                recordingTimer = setInterval(updateRecordingTime, 1000);
+                
+                // 更新UI
+                voiceBtn.textContent = '⏹️';
+                voiceBtn.classList.add('recording');
+                waveContainer.style.display = 'flex';
+                showStatus('正在录音... 点击按钮停止录音', 'recording');
+                submitBtn.style.display = 'none';
+                audioPlayer.style.display = 'none';
+                
+            } catch (error) {
+                console.error('开始录音失败:', error);
+                debugLog(`开始录音失败: ${error.message}`);
+                showStatus('无法访问麦克风，请检查权限设置', 'error');
             }
         }
-
-        // 初始化页面
-        document.addEventListener('DOMContentLoaded', function() {
-            // 绑定按钮事件
-            document.getElementById('generateBtn').addEventListener('click', generateTestAudio);
-            document.getElementById('playBtn').addEventListener('click', playAudio);
-            document.getElementById('toggleDebug').addEventListener('click', toggleDebugInfo);
-            
-            // 显示初始状态
-            showStatus('准备好测试MiniMax API语音合成功能', 'info');
-        });
-
-        // 清理音频URL防止内存泄漏
-        window.addEventListener('beforeunload', function() {
-            if (currentAudioUrl) {
-                URL.revokeObjectURL(currentAudioUrl);
+        
+        // 停止录音
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // 清除计时器
+                if (recordingTimer) {
+                    clearInterval(recordingTimer);
+                    recordingTimer = null;
+                }
+                
+                // 更新UI
+                voiceBtn.textContent = '▶️';
+                voiceBtn.classList.remove('recording');
+                voiceBtn.classList.add('playback');
+                waveContainer.style.display = 'none';
+                showStatus('录音完成！点击播放按钮重听录音', 'success');
             }
+        }
+        
+        // 录音完成后的UI更新
+        function updateUIAfterRecording() {
+            submitBtn.style.display = 'block';
+            audioPlayer.style.display = 'block';
+            debugLog("UI已更新，显示提交按钮和音频播放器");
+        }
+        
+        // 播放录音
+        function playRecording() {
+            if (currentAudioBlob) {
+                audioPlayer.play();
+                showStatus('正在播放录音...', 'processing');
+                debugLog("开始播放录音");
+                
+                audioPlayer.onended = () => {
+                    showStatus('播放完成', 'success');
+                    debugLog("录音播放完成");
+                };
+            }
+        }
+        
+        // 切换录音/播放状态
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else if (currentAudioBlob) {
+                // 如果有录音，则播放
+                playRecording();
+            } else {
+                // 没有录音，开始录音
+                startRecording();
+            }
+        }
+        
+        // 处理录音数据并调用百度API
+        async function submitRecording() {
+            if (!currentAudioBlob) {
+                showStatus('没有可提交的录音', 'error');
+                debugLog("提交失败：没有可提交的录音");
+                return;
+            }
+            
+            if (CONFIG.isLocalMode) {
+                showStatus('本地模式下无法使用百度语音识别API，请使用浏览器语音识别功能', 'warning');
+                return;
+            }
+            
+            try {
+                showStatus('正在处理语音...', 'processing');
+                submitBtn.disabled = true;
+                debugLog("开始提交录音到百度API");
+                
+                // 获取访问令牌
+                await getBaiduAccessToken();
+                
+                // 将Blob转换为Base64
+                debugLog("将录音Blob转换为Base64...");
+                const base64Audio = await blobToBase64(currentAudioBlob);
+                debugLog(`Base64音频数据长度: ${base64Audio.length} 字符`);
+                
+                // 通过Netlify Functions调用百度语音识别API
+                const result = await callBaiduSpeechAPI(base64Audio);
+                
+                // 显示识别结果
+                if (result && result.result && result.result[0]) {
+                    resultText.value = result.result[0];
+                    showStatus('识别成功！', 'success');
+                    debugLog(`识别成功: ${result.result[0]}`);
+                } else {
+                    throw new Error('未识别到有效语音');
+                }
+                
+            } catch (error) {
+                console.error('语音识别失败:', error);
+                debugLog(`语音识别失败: ${error.message}`);
+                showStatus(`识别失败: ${error.message}`, 'error');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // 将Blob转换为Base64
+        function blobToBase64(blob) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    // 移除dataURL前缀，只保留Base64数据
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.readAsDataURL(blob);
+            });
+        }
+        
+        // 通过Netlify Functions调用百度语音识别API
+        async function callBaiduSpeechAPI(base64Audio) {
+            debugLog("通过Netlify Functions调用百度语音识别API...");
+            
+            // 百度语音识别API参数
+            const requestData = {
+                format: 'wav',
+                rate: 16000,
+                channel: 1,
+                token: accessToken,
+                cuid: 'baidu_speech_demo',
+                len: base64Audio.length,
+                speech: base64Audio,
+                dev_pid: 1537
+            };
+            
+            debugLog(`API请求数据: ${JSON.stringify({
+                ...requestData,
+                speech: `${base64Audio.substring(0, 50)}...`
+            })}`);
+            
+            try {
+                const response = await fetch(CONFIG.speechProxyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                debugLog(`API响应状态: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                debugLog(`API响应数据: ${JSON.stringify(result)}`);
+                
+                if (result.err_no === 0) {
+                    return result;
+                } else {
+                    throw new Error(`API错误: ${result.err_msg} (错误码: ${result.err_no})`);
+                }
+                
+            } catch (error) {
+                debugLog(`API调用失败: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        // 绑定事件
+        voiceBtn.addEventListener('click', toggleRecording);
+        submitBtn.addEventListener('click', submitRecording);
+        browserRecognitionBtn.addEventListener('click', toggleBrowserRecognition);
+        debugToggle.addEventListener('click', () => {
+            debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+            debugToggle.textContent = debugInfo.style.display === 'none' ? '显示调试信息' : '隐藏调试信息';
+        });
+        
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            if (CONFIG.isLocalMode) {
+                localMode.style.display = 'block';
+                showStatus('本地测试模式已启用，使用浏览器语音识别功能', 'warning');
+                submitBtn.style.display = 'none'; // 在本地模式下隐藏提交按钮
+            } else {
+                localMode.style.display = 'none';
+                showStatus('点击麦克风按钮开始录音', 'processing');
+            }
+            
+            debugLog("页面初始化完成");
+            debugLog(`浏览器信息: ${navigator.userAgent}`);
+            debugLog(`是否支持MediaRecorder: ${!!window.MediaRecorder}`);
+            debugLog(`是否支持语音识别: ${!!(window.SpeechRecognition || window.webkitSpeechRecognition)}`);
+            debugLog(`当前模式: ${CONFIG.isLocalMode ? '本地测试' : 'Netlify部署'}`);
+            
+            // 初始化浏览器语音识别
+            initBrowserRecognition();
         });
     </script>
 </body>

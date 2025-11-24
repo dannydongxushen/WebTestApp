@@ -1,3 +1,6 @@
+[build]
+  functions = "netlify/functions"
+
 [[redirects]]
   from = "/api/translate/*"
   to = "https://fanyi-api.baidu.com/api/trans/vip/translate/:splat"
@@ -7,4 +10,10 @@
 [[redirects]]
   from = "/api/youdao"
   to = "/.netlify/functions/youdao-proxy"
+  status = 200
+
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/baidu-proxy"
   status = 200
