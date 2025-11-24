@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI儿童故事生成器 - MiniMax国际站</title>
+    <title>AI儿童故事生成器</title>
     <style>
         * {
             margin: 0;
@@ -342,11 +342,116 @@
         .voice-status {
             margin-top: 10px;
             padding: 10px;
-            background: #fff3cd;
             border-radius: 8px;
             font-size: 14px;
             text-align: center;
             display: none;
+        }
+
+        /* 新增样式：语音输入控制面板 */
+        .voice-control-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e1e8ed;
+            display: none;
+        }
+
+        .voice-visualization {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60px;
+            margin-bottom: 15px;
+        }
+
+        .voice-bar {
+            width: 4px;
+            height: 20px;
+            margin: 0 2px;
+            background: #6c5ce7;
+            border-radius: 2px;
+            animation: voiceWave 1.2s infinite ease-in-out;
+        }
+
+        @keyframes voiceWave {
+            0%, 40%, 100% {
+                transform: scaleY(0.5);
+            }
+            20% {
+                transform: scaleY(1.5);
+            }
+        }
+
+        .voice-control-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .voice-control-buttons button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .play-recording-btn {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .re-record-btn {
+            background: #ff9f43;
+            color: white;
+        }
+
+        .submit-recording-btn {
+            background: #6c5ce7;
+            color: white;
+        }
+
+        .recording-timer {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .recording-info {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        /* 新增：播放进度条样式 */
+        .playback-progress {
+            margin: 15px 0;
+            display: none;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #e1e8ed;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #6c5ce7;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .progress-time {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #7f8c8d;
         }
     </style>
 </head>
@@ -387,6 +492,41 @@
                     <button class="voice-input-btn" id="voiceInputBtn">
                         🎤 语音输入提示词
                     </button>
+                    
+                    <!-- 新增语音控制面板 -->
+                    <div class="voice-control-panel" id="voiceControlPanel">
+                        <div class="recording-timer" id="recordingTimer">00:00</div>
+                        <div class="voice-visualization" id="voiceVisualization">
+                            <!-- 动态声波条将通过JS生成 -->
+                        </div>
+                        
+                        <!-- 新增播放进度条 -->
+                        <div class="playback-progress" id="playbackProgress">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" id="progressBar"></div>
+                            </div>
+                            <div class="progress-time">
+                                <span id="currentTime">00:00</span>
+                                <span id="totalTime">00:00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="voice-control-buttons">
+                            <button class="play-recording-btn" id="playRecordingBtn" disabled>
+                                ▶️ 播放录音
+                            </button>
+                            <button class="re-record-btn" id="reRecordBtn">
+                                🔄 重新录入
+                            </button>
+                            <button class="submit-recording-btn" id="submitRecordingBtn" disabled>
+                                ✅ 提交识别
+                            </button>
+                        </div>
+                        <div class="recording-info">
+                            最长可录制60秒音频
+                        </div>
+                    </div>
+                    
                     <div class="voice-status" id="voiceStatus"></div>
                 </div>
 
@@ -484,6 +624,14 @@
         let currentAudioUrl = null;
         let recognition = null;
         let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordedAudioBlob = null;
+        let recordingTimer = null;
+        let recordingSeconds = 0;
+        let maxRecordingTime = 60; // 最大录音时间60秒
+        let playbackAudio = null; // 用于播放录音的Audio对象
+        let playbackTimer = null; // 播放进度更新定时器
 
         // 本地提示词库
         const PROMPT_SUGGESTIONS = [
@@ -700,16 +848,110 @@
             }
         }
 
-        // 开始录音
-        function startRecording() {
-            if (!recognition) {
-                if (!initSpeechRecognition()) {
-                    return;
-                }
-            }
-            
+        // 初始化媒体录音
+        async function initMediaRecorder() {
             try {
-                recognition.start();
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('您的浏览器不支持录音功能');
+                }
+                
+                // 确保之前的流被释放
+                if (mediaRecorder && mediaRecorder.stream) {
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    
+                    // 启用播放和提交按钮
+                    document.getElementById('playRecordingBtn').disabled = false;
+                    document.getElementById('submitRecordingBtn').disabled = false;
+                    
+                    // 停止录音动画
+                    stopVoiceAnimation();
+                    
+                    // 更新按钮状态
+                    document.getElementById('voiceInputBtn').textContent = '🎤 语音输入提示词';
+                    document.getElementById('voiceInputBtn').classList.remove('recording');
+                    
+                    // 显示录音成功信息
+                    showVoiceStatus(`✅ 录音完成，时长 ${recordingSeconds} 秒`, 'success');
+                    
+                    // 清除计时器
+                    clearInterval(recordingTimer);
+                    recordingSeconds = 0;
+                    document.getElementById('recordingTimer').textContent = '00:00';
+                };
+                
+                return true;
+            } catch (error) {
+                console.error('初始化媒体录音失败:', error);
+                showVoiceStatus(`❌ ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 开始录音
+        async function startRecording() {
+            try {
+                // 重置状态
+                audioChunks = [];
+                recordedAudioBlob = null;
+                
+                // 确保之前的音频播放停止
+                if (playbackAudio) {
+                    playbackAudio.pause();
+                    clearInterval(playbackTimer);
+                    document.getElementById('playbackProgress').style.display = 'none';
+                }
+                
+                // 重新初始化媒体录音器
+                const success = await initMediaRecorder();
+                if (!success) return;
+                
+                // 开始录音
+                mediaRecorder.start();
+                isRecording = true;
+                
+                // 更新UI
+                document.getElementById('voiceInputBtn').textContent = '⏹️ 停止录音';
+                document.getElementById('voiceInputBtn').classList.add('recording');
+                document.getElementById('voiceControlPanel').style.display = 'block';
+                document.getElementById('playRecordingBtn').disabled = true;
+                document.getElementById('submitRecordingBtn').disabled = true;
+                document.getElementById('playbackProgress').style.display = 'none';
+                
+                // 显示录音状态
+                showVoiceStatus('🎤 正在录音中...', 'info');
+                
+                // 开始计时
+                recordingSeconds = 0;
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    const minutes = Math.floor(recordingSeconds / 60);
+                    const seconds = recordingSeconds % 60;
+                    document.getElementById('recordingTimer').textContent = 
+                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    // 达到最大录音时间自动停止
+                    if (recordingSeconds >= maxRecordingTime) {
+                        stopRecording();
+                    }
+                }, 1000);
+                
+                // 开始声波动画
+                startVoiceAnimation();
+                
             } catch (error) {
                 console.error('开始录音失败:', error);
                 showVoiceStatus('❌ 开始录音失败，请重试', 'error');
@@ -718,16 +960,182 @@
 
         // 停止录音
         function stopRecording() {
-            isRecording = false;
-            document.getElementById('voiceInputBtn').classList.remove('recording');
-            
-            if (recognition) {
-                try {
-                    recognition.stop();
-                } catch (error) {
-                    // 忽略停止时的错误
-                }
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // 清除计时器
+                clearInterval(recordingTimer);
+                
+                showVoiceStatus('处理录音中...', 'info');
             }
+        }
+
+        // 播放录音
+        function playRecording() {
+            if (recordedAudioBlob) {
+                // 停止之前的播放
+                if (playbackAudio) {
+                    playbackAudio.pause();
+                    clearInterval(playbackTimer);
+                }
+                
+                const audioURL = URL.createObjectURL(recordedAudioBlob);
+                playbackAudio = new Audio(audioURL);
+                
+                // 更新播放按钮状态
+                const playBtn = document.getElementById('playRecordingBtn');
+                playBtn.textContent = '⏸️ 播放中...';
+                
+                // 显示播放进度条
+                document.getElementById('playbackProgress').style.display = 'block';
+                
+                // 设置播放进度更新
+                playbackTimer = setInterval(() => {
+                    if (playbackAudio) {
+                        const currentTime = playbackAudio.currentTime;
+                        const duration = playbackAudio.duration || recordingSeconds;
+                        
+                        // 更新进度条
+                        const progressPercent = (currentTime / duration) * 100;
+                        document.getElementById('progressBar').style.width = `${progressPercent}%`;
+                        
+                        // 更新时间显示
+                        const currentMinutes = Math.floor(currentTime / 60);
+                        const currentSeconds = Math.floor(currentTime % 60);
+                        const totalMinutes = Math.floor(duration / 60);
+                        const totalSeconds = Math.floor(duration % 60);
+                        
+                        document.getElementById('currentTime').textContent = 
+                            `${currentMinutes.toString().padStart(2, '0')}:${currentSeconds.toString().padStart(2, '0')}`;
+                        document.getElementById('totalTime').textContent = 
+                            `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
+                    }
+                }, 100);
+                
+                playbackAudio.play();
+                
+                playbackAudio.onended = () => {
+                    playBtn.textContent = '▶️ 播放录音';
+                    clearInterval(playbackTimer);
+                    document.getElementById('progressBar').style.width = '100%';
+                };
+                
+                playbackAudio.onpause = () => {
+                    playBtn.textContent = '▶️ 播放录音';
+                    clearInterval(playbackTimer);
+                };
+            }
+        }
+
+        // 重新录音
+        function reRecord() {
+            // 停止播放
+            if (playbackAudio) {
+                playbackAudio.pause();
+                clearInterval(playbackTimer);
+            }
+            
+            // 重置状态
+            audioChunks = [];
+            recordedAudioBlob = null;
+            
+            // 重置UI
+            document.getElementById('playRecordingBtn').disabled = true;
+            document.getElementById('submitRecordingBtn').disabled = true;
+            document.getElementById('playRecordingBtn').textContent = '▶️ 播放录音';
+            document.getElementById('recordingTimer').textContent = '00:00';
+            document.getElementById('playbackProgress').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+            
+            // 开始新的录音
+            startRecording();
+        }
+
+        // 提交录音进行识别
+        async function submitRecording() {
+            if (!recordedAudioBlob) {
+                showVoiceStatus('❌ 没有可提交的录音', 'error');
+                return;
+            }
+            
+            try {
+                showVoiceStatus('正在识别语音...', 'info');
+                
+                // 获取百度语音识别令牌
+                const accessToken = await getBaiduAccessToken();
+                
+                // 将录音转换为base64
+                const reader = new FileReader();
+                reader.readAsDataURL(recordedAudioBlob);
+                
+                reader.onload = async () => {
+                    const base64Audio = reader.result.split(',')[1];
+                    
+                    // 调用百度语音识别API
+                    const response = await fetch(`https://vop.baidu.com/server_api?dev_pid=1537&cuid=test&token=${accessToken}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            format: 'webm',
+                            rate: 16000,
+                            channel: 1,
+                            token: accessToken,
+                            cuid: 'test',
+                            len: recordedAudioBlob.size,
+                            speech: base64Audio
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`百度语音识别API错误: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.err_no === 0) {
+                        const transcript = result.result[0];
+                        document.getElementById('keywords').value = transcript;
+                        showVoiceStatus(`✅ 识别成功: "${transcript}"`, 'success');
+                        
+                        // 隐藏语音控制面板
+                        document.getElementById('voiceControlPanel').style.display = 'none';
+                        
+                        // 自动开始生成故事
+                        setTimeout(() => {
+                            generateStory();
+                        }, 1000);
+                    } else {
+                        throw new Error(`语音识别失败: ${result.err_msg}`);
+                    }
+                };
+                
+            } catch (error) {
+                console.error('提交录音失败:', error);
+                showVoiceStatus(`❌ 识别失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 开始声波动画
+        function startVoiceAnimation() {
+            const visualization = document.getElementById('voiceVisualization');
+            visualization.innerHTML = '';
+            
+            // 创建多个声波条
+            for (let i = 0; i < 20; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'voice-bar';
+                bar.style.animationDelay = `${i * 0.05}s`;
+                visualization.appendChild(bar);
+            }
+        }
+
+        // 停止声波动画
+        function stopVoiceAnimation() {
+            const visualization = document.getElementById('voiceVisualization');
+            visualization.innerHTML = '';
         }
 
         // 切换录音状态
@@ -972,6 +1380,11 @@
             // 绑定语音输入按钮事件
             document.getElementById('voiceInputBtn').addEventListener('click', toggleRecording);
             
+            // 绑定录音控制按钮事件
+            document.getElementById('playRecordingBtn').addEventListener('click', playRecording);
+            document.getElementById('reRecordBtn').addEventListener('click', reRecord);
+            document.getElementById('submitRecordingBtn').addEventListener('click', submitRecording);
+            
             // 绑定提示词建议按钮事件
             document.getElementById('suggestion1').addEventListener('click', function() {
                 document.getElementById('keywords').value = this.textContent;
@@ -997,9 +1410,6 @@
             // 页面加载时设置随机提示词
             setRandomPrompt();
             
-            // 初始化语音识别
-            initSpeechRecognition();
-            
             // 显示初始状态
             showStatus('准备好生成定制儿童故事！请设置故事参数并点击生成按钮。', 'info');
         });
@@ -1008,6 +1418,9 @@
         window.addEventListener('beforeunload', function() {
             if (currentAudioUrl) {
                 URL.revokeObjectURL(currentAudioUrl);
+            }
+            if (playbackAudio) {
+                playbackAudio.pause();
             }
         });
     </script>
