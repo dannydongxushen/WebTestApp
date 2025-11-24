@@ -1,5 +1,4 @@
 // netlify/functions/baidu-proxy.js
-const fetch = require('node-fetch');
 
 exports.handler = async function(event) {
   const path = event.path;
