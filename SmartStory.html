@@ -766,120 +766,101 @@
 
         // 获取百度访问令牌
         async function getBaiduAccessToken() {
-        try {
-            console.log('通过Netlify Function获取百度Access Token...');
-            
-            // 调用Netlify Function
-            const response = await fetch('/.netlify/functions/baidu-proxy/baidu-token', {
-            method: 'POST'
-            });
-            
-            if (!response.ok) {
-            throw new Error(`HTTP错误! 状态: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('Netlify Function响应:', data);
-            
-            if (data.access_token) {
-            console.log('成功获取到Access Token');
-            return data.access_token;
-            } else {
-            throw new Error(`获取令牌失败: ${data.error_description || '未知错误'}`);
-            }
-            
-        } catch (error) {
-            console.error('通过Netlify Function获取Access Token失败:', error);
-            throw error;
-        }
-        }
-
-        // 提交语音识别（修复版）
-        async function submitRecording() {
-        if (!recordedAudioBlob) {
-            showVoiceStatus('❌ 没有可提交的录音', 'error');
-            return;
-        }
-        
-        try {
-            showVoiceStatus('正在识别语音...', 'info');
-            
-            // 1. 先获取访问令牌
-            const accessToken = await getBaiduAccessToken();
-            
-            // 2. 将录音转换为base64
-            const reader = new FileReader();
-            
-            return new Promise((resolve, reject) => {
-            reader.onload = async () => {
-                try {
-                const base64Audio = reader.result.split(',')[1];
+            try {
+                console.log('通过Netlify Function获取百度Access Token...');
                 
-                // 3. 准备请求数据 - 使用百度推荐的参数
-                const requestData = {
-                    format: 'wav', // 改为wav格式，百度支持更好
-                    rate: 16000,   // 使用16000Hz采样率
-                    channel: 1,    // 单声道
-                    token: accessToken,
-                    cuid: 'netlify-story-app',
-                    len: recordedAudioBlob.size,
-                    speech: base64Audio
-                };
-                
-                console.log('通过Netlify Function提交语音识别...', requestData);
-                
-                // 4. 调用Netlify Function进行语音识别
-                const response = await fetch('/.netlify/functions/baidu-proxy/baidu-speech?token=' + accessToken, {
-                    method: 'POST',
-                    headers: {
-                    'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
+                // 调用Netlify Function
+                const response = await fetch('/.netlify/functions/baidu-proxy/baidu-token', {
+                method: 'POST'
                 });
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('语音识别API错误响应:', errorText);
-                    throw new Error(`语音识别API错误: ${response.status}`);
+                throw new Error(`HTTP错误! 状态: ${response.status}`);
                 }
                 
-                const result = await response.json();
-                console.log('语音识别结果:', result);
+                const data = await response.json();
+                console.log('Netlify Function响应:', data);
                 
-                if (result.err_no === 0) {
-                    const transcript = result.result[0];
-                    document.getElementById('keywords').value = transcript;
-                    showVoiceStatus(`✅ 识别成功: "${transcript}"`, 'success');
-                    
-                    // 隐藏语音控制面板
-                    document.getElementById('voiceControlPanel').style.display = 'none';
-                    
-                    // 自动开始生成故事
-                    setTimeout(() => {
-                    generateStory();
-                    }, 1000);
-                    
-                    resolve(transcript);
+                if (data.access_token) {
+                console.log('成功获取到Access Token');
+                return data.access_token;
                 } else {
-                    throw new Error(`语音识别失败: ${result.err_msg} (错误码: ${result.err_no})`);
+                throw new Error(`获取令牌失败: ${data.error_description || '未知错误'}`);
                 }
                 
-                } catch (error) {
-                reject(error);
-                }
-            };
-            
-            reader.onerror = () => reject(new Error('文件读取失败'));
-            reader.readAsDataURL(recordedAudioBlob);
-            });
-            
-        } catch (error) {
-            console.error('提交录音失败:', error);
-            showVoiceStatus(`❌ 识别失败: ${error.message}`, 'error');
-        }
+            } catch (error) {
+                console.error('通过Netlify Function获取Access Token失败:', error);
+                throw error;
+            }
         }
 
-// 初始化媒体录音
+        // 在submitRecording函数中添加格式验证
+        async function submitRecording() {
+            if (!recordedAudioBlob) {
+                showVoiceStatus('❌ 没有可提交的录音', 'error');
+                return;
+            }
+            
+            try {
+                showVoiceStatus('正在识别语音...', 'info');
+                
+                // 显示音频格式信息
+                showDebugInfo(`提交的音频格式: ${recordedAudioBlob.type}, 大小: ${(recordedAudioBlob.size/1024).toFixed(2)}KB`);
+                
+                // 1. 先获取访问令牌
+                const accessToken = await getBaiduAccessToken();
+                
+                // 2. 将录音转换为base64
+                const reader = new FileReader();
+                
+                return new Promise((resolve, reject) => {
+                    reader.onload = async () => {
+                        try {
+                            const base64Audio = reader.result.split(',')[1];
+                            
+                            // 3. 准备请求数据 - 使用百度推荐的参数
+                            const requestData = {
+                                format: 'wav', // 使用wav格式
+                                rate: 16000,   // 16000Hz采样率
+                                channel: 1,    // 单声道
+                                token: accessToken,
+                                cuid: 'netlify-story-app',
+                                len: recordedAudioBlob.size,
+                                speech: base64Audio
+                            };
+                            
+                            console.log('通过Netlify Function提交语音识别...', {
+                                format: requestData.format,
+                                rate: requestData.rate,
+                                size: requestData.len
+                            });
+                            
+                            // 4. 调用Netlify Function进行语音识别
+                            const response = await fetch('/.netlify/functions/baidu-proxy/baidu-speech?token=' + accessToken, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(requestData)
+                            });
+                            
+                            // ... 其余代码保持不变
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    
+                    reader.onerror = () => reject(new Error('文件读取失败'));
+                    reader.readAsDataURL(recordedAudioBlob);
+                });
+                
+            } catch (error) {
+                console.error('提交录音失败:', error);
+                showVoiceStatus(`❌ 识别失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 初始化媒体录音
         async function initMediaRecorder() {
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -891,8 +872,29 @@
                     mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 }
                 
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                // 请求音频输入，指定采样率
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000, // 设置采样率为16000Hz
+                        channelCount: 1,   // 单声道
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                // 尝试使用WAV格式，如果浏览器支持的话
+                const wavOptions = { mimeType: 'audio/wav' };
+                let mediaRecorder;
+                
+                if (MediaRecorder.isTypeSupported('audio/wav')) {
+                    mediaRecorder = new MediaRecorder(stream, wavOptions);
+                    console.log('使用WAV格式录制');
+                } else {
+                    // 回退到默认格式，后续需要转换
+                    mediaRecorder = new MediaRecorder(stream);
+                    console.log('使用默认格式录制，后续需要转换');
+                }
+                
                 audioChunks = [];
                 
                 mediaRecorder.ondataavailable = (event) => {
@@ -902,8 +904,13 @@
                 };
                 
                 mediaRecorder.onstop = () => {
-                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    recordedAudioDuration = recordingSeconds; // 保存录音时长
+                    // 创建最终的Blob
+                    const finalBlob = new Blob(audioChunks, { 
+                        type: mediaRecorder.mimeType === 'audio/wav' ? 'audio/wav' : 'audio/webm'
+                    });
+                    
+                    recordedAudioBlob = finalBlob;
+                    recordedAudioDuration = recordingSeconds;
                     
                     // 启用播放和提交按钮
                     document.getElementById('playRecordingBtn').disabled = false;
@@ -919,6 +926,9 @@
                     // 显示录音成功信息
                     showVoiceStatus(`✅ 录音完成，时长 ${recordingSeconds} 秒`, 'success');
                     
+                    // 显示音频信息
+                    showDebugInfo(`音频格式: ${finalBlob.type}, 大小: ${(finalBlob.size/1024).toFixed(2)}KB`);
+                    
                     // 清除计时器
                     clearInterval(recordingTimer);
                     recordingSeconds = 0;
@@ -928,11 +938,126 @@
                     updateTotalTimeDisplay();
                 };
                 
-                return true;
+                return mediaRecorder;
             } catch (error) {
                 console.error('初始化媒体录音失败:', error);
                 showVoiceStatus(`❌ ${error.message}`, 'error');
-                return false;
+                return null;
+            }
+        }
+        
+        // 将其他格式的音频转换为WAV格式
+        async function convertToWav(audioChunks) {
+    return new Promise((resolve) => {
+        // 创建一个临时的Blob用于播放
+        const originalBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(originalBlob);
+        const audio = new Audio(audioUrl);
+        
+        // 使用AudioContext进行格式转换
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000 // 设置目标采样率
+        });
+        
+        const reader = new FileReader();
+        reader.onload = async function() {
+            try {
+                // 解码音频数据
+                const audioBuffer = await audioContext.decodeAudioData(reader.result);
+                
+                // 创建新的AudioBuffer，确保是16000Hz采样率和单声道
+                const offlineContext = new OfflineAudioContext({
+                    numberOfChannels: 1, // 单声道
+                    length: audioBuffer.length,
+                    sampleRate: 16000
+                });
+                
+                const source = offlineContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(offlineContext.destination);
+                source.start();
+                
+                // 渲染为新的音频Buffer
+                const renderedBuffer = await offlineContext.startRendering();
+                
+                // 将AudioBuffer转换为WAV格式的Blob
+                const wavBlob = audioBufferToWav(renderedBuffer);
+                resolve(wavBlob);
+                
+            } catch (error) {
+                console.error('音频转换失败:', error);
+                // 如果转换失败，返回原始Blob
+                resolve(originalBlob);
+            }
+        };
+        
+        reader.readAsArrayBuffer(originalBlob);
+    });
+}
+
+        // 将AudioBuffer转换为WAV Blob
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            
+            const bufferLength = buffer.length * numChannels * bytesPerSample;
+            const dataLength = bufferLength;
+            const headerLength = 44;
+            const totalLength = headerLength + dataLength;
+            
+            const arrayBuffer = new ArrayBuffer(totalLength);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV文件头
+            // RIFF标识
+            writeString(view, 0, 'RIFF');
+            // 文件长度
+            view.setUint32(4, totalLength - 8, true);
+            // WAVE标识
+            writeString(view, 8, 'WAVE');
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            // fmt chunk长度
+            view.setUint32(16, 16, true);
+            // 音频格式 (PCM)
+            view.setUint16(20, format, true);
+            // 声道数
+            view.setUint16(22, numChannels, true);
+            // 采样率
+            view.setUint32(24, sampleRate, true);
+            // 字节率
+            view.setUint32(28, sampleRate * blockAlign, true);
+            // 块对齐
+            view.setUint16(32, blockAlign, true);
+            // 位深度
+            view.setUint16(34, bitDepth, true);
+            // data chunk
+            writeString(view, 36, 'data');
+            // data chunk长度
+            view.setUint32(40, dataLength, true);
+            
+            // 写入PCM数据
+            let offset = 44;
+            for (let i = 0; i < buffer.length; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        // 辅助函数：写入字符串到DataView
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
             }
         }
 
