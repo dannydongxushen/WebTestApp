@@ -794,12 +794,41 @@
             }
         }
 
-        // 在submitRecording函数中添加格式验证
+        // 改进的语音状态显示函数
+        function showVoiceStatus(message, type = 'info', duration = 0) {
+            const voiceStatus = document.getElementById('voiceStatus');
+            voiceStatus.innerHTML = message;
+            voiceStatus.style.display = 'block';
+            voiceStatus.className = `voice-status ${type}`;
+            
+            // 如果是错误信息，显示更长时间；如果是成功信息，自动隐藏
+            if (type === 'error' && duration === 0) {
+                duration = 10000; // 错误信息显示10秒
+            } else if (type === 'success' && duration === 0) {
+                duration = 5000; // 成功信息显示5秒
+            }
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (voiceStatus.innerHTML === message) {
+                        voiceStatus.style.display = 'none';
+                    }
+                }, duration);
+            }
+        }
+
+        // 在submitRecording函数中添加进度指示
         async function submitRecording() {
             if (!recordedAudioBlob) {
                 showVoiceStatus('❌ 没有可提交的录音', 'error');
                 return;
             }
+            
+            // 禁用提交按钮，防止重复提交
+            const submitBtn = document.getElementById('submitRecordingBtn');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '🔄 识别中...';
             
             try {
                 showVoiceStatus('正在识别语音...', 'info');
@@ -808,57 +837,73 @@
                 showDebugInfo(`提交的音频格式: ${recordedAudioBlob.type}, 大小: ${(recordedAudioBlob.size/1024).toFixed(2)}KB`);
                 
                 // 1. 先获取访问令牌
+                showVoiceStatus('获取访问令牌...', 'info');
                 const accessToken = await getBaiduAccessToken();
                 
                 // 2. 将录音转换为base64
-                const reader = new FileReader();
-                
-                return new Promise((resolve, reject) => {
-                    reader.onload = async () => {
-                        try {
-                            const base64Audio = reader.result.split(',')[1];
-                            
-                            // 3. 准备请求数据 - 使用百度推荐的参数
-                            const requestData = {
-                                format: 'wav', // 使用wav格式
-                                rate: 16000,   // 16000Hz采样率
-                                channel: 1,    // 单声道
-                                token: accessToken,
-                                cuid: 'netlify-story-app',
-                                len: recordedAudioBlob.size,
-                                speech: base64Audio
-                            };
-                            
-                            console.log('通过Netlify Function提交语音识别...', {
-                                format: requestData.format,
-                                rate: requestData.rate,
-                                size: requestData.len
-                            });
-                            
-                            // 4. 调用Netlify Function进行语音识别
-                            const response = await fetch('/.netlify/functions/baidu-proxy/baidu-speech?token=' + accessToken, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(requestData)
-                            });
-                            
-                            // ... 其余代码保持不变
-                        } catch (error) {
-                            reject(error);
-                        }
-                    };
-                    
+                showVoiceStatus('处理音频数据...', 'info');
+                const base64Audio = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
                     reader.onerror = () => reject(new Error('文件读取失败'));
                     reader.readAsDataURL(recordedAudioBlob);
                 });
                 
+                // 3. 准备请求数据
+                showVoiceStatus('提交语音识别请求...', 'info');
+                const requestData = {
+                    format: 'wav',
+                    rate: 16000,
+                    channel: 1,
+                    token: accessToken,
+                    cuid: 'netlify-story-app',
+                    len: recordedAudioBlob.size,
+                    speech: base64Audio
+                };
+                
+                console.log('通过Netlify Function提交语音识别...', requestData);
+                
+                // 4. 调用Netlify Function进行语音识别
+                const response = await fetchWithTimeout('/.netlify/functions/baidu-proxy/baidu-speech?token=' + accessToken, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                }, 15000);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('语音识别API错误响应:', errorText);
+                    throw new Error(`语音识别API错误: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('语音识别完整结果:', result);
+                
+                if (result.err_no === 0) {
+                    const transcript = result.result[0];
+                    document.getElementById('keywords').value = transcript;
+                    showVoiceStatus(`✅ 识别成功: "${transcript}"`, 'success');
+                    
+                    // 隐藏语音控制面板
+                    document.getElementById('voiceControlPanel').style.display = 'none';
+                    
+                    return transcript;
+                } else {
+                    throw new Error(`语音识别失败: ${result.err_msg} (错误码: ${result.err_no})`);
+                }
+                
             } catch (error) {
                 console.error('提交录音失败:', error);
                 showVoiceStatus(`❌ 识别失败: ${error.message}`, 'error');
+                throw error;
+            } finally {
+                // 恢复按钮状态
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
-        }
+        }       
         
         // 初始化媒体录音（完整修复版）
         async function initMediaRecorder() {
