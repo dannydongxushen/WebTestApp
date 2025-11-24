@@ -42,11 +42,40 @@ exports.handler = async function(event) {
         throw new Error('缺少访问令牌参数');
       }
       
-      targetUrl = `https://vop.baidu.com/server_api?dev_pid=1537&cuid=netlify-app&token=${accessToken}`;
+      // 修正：只保留token在URL中
+      targetUrl = `https://vop.baidubce.com/server_api?token=${accessToken}`;
       requestOptions.method = 'POST';
       
       if (event.body) {
-        requestOptions.body = event.body;
+        try {
+          const requestBody = JSON.parse(event.body);
+          
+          // 构建符合百度API要求的请求体
+          const speechRequestBody = {
+            format: requestBody.format || 'wav',
+            rate: requestBody.rate || 16000,
+            channel: requestBody.channel || 1,
+            cuid: requestBody.cuid || 'netlify-app',
+            token: accessToken,
+            speech: requestBody.speech,
+            len: requestBody.len,
+            dev_pid: requestBody.dev_pid || 1537 // 默认使用普通话模型
+          };
+          
+          console.log('语音识别请求参数:', {
+            format: speechRequestBody.format,
+            rate: speechRequestBody.rate,
+            channel: speechRequestBody.channel,
+            dev_pid: speechRequestBody.dev_pid,
+            data_length: speechRequestBody.len
+          });
+          
+          requestOptions.body = JSON.stringify(speechRequestBody);
+          
+        } catch (parseError) {
+          console.error('解析请求体失败:', parseError);
+          throw new Error('无效的请求格式');
+        }
       }
     } else {
       return {
