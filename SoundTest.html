@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniMax API 语音合成测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 25px;
+        }
+
+        .test-section {
+            margin-bottom: 25px;
+        }
+
+        .test-text {
+            background: #f8f9fa;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .generate-btn {
+            background: #27ae60;
+            color: white;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            background: #219a52;
+            transform: translateY(-2px);
+        }
+
+        .play-btn {
+            background: #3498db;
+            color: white;
+        }
+
+        .play-btn:hover:not(:disabled) {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .audio-section {
+            margin-top: 20px;
+        }
+
+        .audio-section h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .audio-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        audio {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 15px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .debug-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+            display: none;
+        }
+
+        .debug-toggle {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .debug-toggle button {
+            background: transparent;
+            color: #3498db;
+            border: 1px solid #3498db;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+
+        .voice-selection {
+            margin-bottom: 15px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔊 MiniMax API 语音合成测试</h1>
+            <p>测试API连接与音频生成功能</p>
+        </div>
+
+        <div class="content">
+            <div class="test-section">
+                <div class="test-text" id="testText">
+                    点击"生成测试音频"按钮开始测试
+                </div>
+
+                <div class="voice-selection">
+                    <label for="voiceSelect">选择测试音色：</label>
+                    <select id="voiceSelect">
+                        <option value="female-shaonv">少女音色</option>
+                        <option value="female-yujie">御姐音色</option>
+                        <option value="female-chengshu">成熟女性</option>
+                        <option value="male-qn-qingse">青年男声</option>
+                        <option value="male-qn-jingying">精英男声</option>
+                        <option value="presenter_female">女主持人</option>
+                    </select>
+                </div>
+
+                <div class="controls">
+                    <button class="generate-btn" id="generateBtn">生成测试音频</button>
+                    <button class="play-btn" id="playBtn" disabled>播放音频</button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>正在生成音频，请稍候...</p>
+                </div>
+
+                <div id="statusMessage"></div>
+            </div>
+
+            <div class="audio-section">
+                <h3>音频播放器</h3>
+                <div class="audio-controls">
+                    <audio id="audioPlayer" controls style="display: none;"></audio>
+                </div>
+            </div>
+
+            <div class="debug-toggle">
+                <button id="toggleDebug">显示调试信息</button>
+            </div>
+
+            <div class="debug-info" id="debugInfo">
+                <h4>调试信息</h4>
+                <div id="debugContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API配置
+        const CONFIG = {
+            apiKey: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJEb25neHUgU2hlbiIsIlVzZXJOYW1lIjoiVmlydHVhbCBWaWV3IFRlY2hub2xvZ3kiLCJBY2NvdW50IjoiIiwiU3ViamVjdElEIjoiMTg5MDEzNjYyNDY1MDUyMzU2NyIsIlBob25lIjoiIiwiR3JvdXBJRCI6IjE4OTAxMzY2MjQ2NDIxMzQ5NTkiLCJQYWdlTmFtZSI6IiIsIk1haWwiOiJkYW5ueS5kb25neHUuc2hlbkBnbWFpbC5jb20iLCJDcmVhdGVUaW1lIjoiMjAyNS0xMS0yMyAxNzoxNzoyMiIsIlRva2VuVHlwZSI6MSwiaXNzIjoibWluaW1heCJ9.ncL7Hh0Iz6lYrF9vmSZnQ0up2m_mps4OwjZ_RDRz6KaQpSZh5MzWHkMoNAOKIlPt2qI1BJOJLVWRv7J02LFXxH1BwEIHj5Z62sJ5LySsds9E3kMl2Pf0H9F7FN2j8Cm6-SGBXjVQWF97qZDpobXi6wy4kbfvxVaM7OGbEJNoqRlj2EAlkHDHWw1WO_4Hh4p9w_py-Jao533OtSqRu1cmsg442BcrU7jFL03WUE0uhJqTDfEDdVsRGT8RICDP8rAC3E6i7T03KAJ9Et70sPQBdYDYMQjrp3m44PZ1apOnhIKAY8J23E_Ezq2NeyYimBdIxBc3wAoOxuvd1RVcAUEUkw',
+            groupId: '1890136624642134959'
+        };
+
+        // 测试句子库
+        const TEST_SENTENCES = [
+            "今天的阳光格外明媚，让人心情愉悦。",
+            "科技改变生活，创新引领未来。",
+            "学习新知识是人生最大的乐趣之一。",
+            "健康的生活方式是幸福的基础。",
+            "友谊是人生中最宝贵的财富之一。",
+            "努力工作，享受生活，平衡是关键。",
+            "读书可以开阔视野，增长智慧。",
+            "旅行让我们见识世界，丰富人生。",
+            "音乐能够触动心灵，带来宁静。",
+            "美食是生活中不可或缺的享受。"
+        ];
+
+        // 全局变量
+        let currentAudioUrl = null;
+        let debugVisible = false;
+
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            // 自动清除成功和信息类消息
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // 显示调试信息
+        function showDebugInfo(info) {
+            const debugDiv = document.getElementById('debugContent');
+            debugDiv.innerHTML = info;
+        }
+
+        // 切换调试信息显示
+        function toggleDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            const toggleBtn = document.getElementById('toggleDebug');
+            
+            debugVisible = !debugVisible;
+            
+            if (debugVisible) {
+                debugInfo.style.display = 'block';
+                toggleBtn.textContent = '隐藏调试信息';
+            } else {
+                debugInfo.style.display = 'none';
+                toggleBtn.textContent = '显示调试信息';
+            }
+        }
+
+        // 获取随机测试句子
+        function getRandomSentence() {
+            const randomIndex = Math.floor(Math.random() * TEST_SENTENCES.length);
+            return TEST_SENTENCES[randomIndex];
+        }
+
+        // 生成测试音频
+        async function generateTestAudio() {
+            const generateBtn = document.getElementById('generateBtn');
+            const playBtn = document.getElementById('playBtn');
+            const loading = document.getElementById('loading');
+            const testText = document.getElementById('testText');
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            // 重置状态
+            generateBtn.disabled = true;
+            playBtn.disabled = true;
+            loading.style.display = 'block';
+            
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = null;
+            }
+            
+            audioPlayer.style.display = 'none';
+
+            try {
+                // 获取随机测试句子
+                const testSentence = getRandomSentence();
+                testText.textContent = `测试句子: "${testSentence}"`;
+                
+                showStatus('正在调用MiniMax API生成音频...', 'info');
+                
+                // 获取选择的音色
+                const voiceId = document.getElementById('voiceSelect').value;
+                
+                // 调用MiniMax API
+                const apiResponse = await fetch('https://api.minimaxi.com/v1/t2a_v2', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${CONFIG.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'speech-02-turbo',
+                        text: testSentence,
+                        voice_setting: {
+                            voice_id: voiceId,
+                            speed: 1.0,
+                            vol: 1.0,
+                            pitch: 0
+                        }
+                    })
+                });
+
+                // 记录API响应状态
+                showDebugInfo(`API响应状态: ${apiResponse.status} ${apiResponse.statusText}`);
+
+                if (!apiResponse.ok) {
+                    const errorText = await apiResponse.text();
+                    showDebugInfo(`错误响应: ${errorText}`);
+                    throw new Error(`API请求失败: ${apiResponse.status} ${apiResponse.statusText}`);
+                }
+
+                // 处理音频响应
+                const audioBlob = await apiResponse.blob();
+                
+                if (audioBlob.size === 0) {
+                    throw new Error('API返回的音频数据为空');
+                }
+                
+                showDebugInfo(`音频数据大小: ${(audioBlob.size / 1024).toFixed(2)} KB`);
+
+                currentAudioUrl = URL.createObjectURL(audioBlob);
+                audioPlayer.src = currentAudioUrl;
+                audioPlayer.style.display = 'block';
+                
+                // 等待音频加载完成
+                await new Promise((resolve, reject) => {
+                    audioPlayer.onloadeddata = resolve;
+                    audioPlayer.onerror = () => reject(new Error('音频加载失败'));
+                    
+                    // 设置超时
+                    setTimeout(() => {
+                        reject(new Error('音频加载超时'));
+                    }, 10000);
+                });
+
+                showStatus('音频生成成功！可以点击播放按钮测试。', 'success');
+                playBtn.disabled = false;
+
+            } catch (error) {
+                console.error('生成音频时出错:', error);
+                showStatus(`生成失败: ${error.message}`, 'error');
+                testText.textContent = '生成失败，请检查API密钥和网络连接';
+            } finally {
+                generateBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        // 播放音频
+        function playAudio() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playBtn = document.getElementById('playBtn');
+            
+            if (currentAudioUrl && audioPlayer.src) {
+                audioPlayer.play().then(() => {
+                    playBtn.textContent = '播放中...';
+                    showStatus('音频播放中...', 'info');
+                }).catch(error => {
+                    showStatus(`播放失败: ${error.message}`, 'error');
+                });
+                
+                // 监听播放结束
+                audioPlayer.onended = function() {
+                    playBtn.textContent = '播放音频';
+                    showStatus('音频播放完成', 'success');
+                };
+            } else {
+                showStatus('音频未准备好，请先生成音频', 'error');
+            }
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定按钮事件
+            document.getElementById('generateBtn').addEventListener('click', generateTestAudio);
+            document.getElementById('playBtn').addEventListener('click', playAudio);
+            document.getElementById('toggleDebug').addEventListener('click', toggleDebugInfo);
+            
+            // 显示初始状态
+            showStatus('准备好测试MiniMax API语音合成功能', 'info');
+        });
+
+        // 清理音频URL防止内存泄漏
+        window.addEventListener('beforeunload', function() {
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+            }
+        });
+    </script>
+</body>
+</html>

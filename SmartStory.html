@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI儿童故事生成器 - MiniMax国际站</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .selection-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .selection-group {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .generate-btn {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            background: #3db4ac;
+            transform: translateY(-2px);
+        }
+
+        .play-btn {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .play-btn:hover:not(:disabled) {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .voice-input-btn {
+            background: #6c5ce7;
+            color: white;
+            padding: 10px 15px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .voice-input-btn:hover:not(:disabled) {
+            background: #5b4cd8;
+            transform: translateY(-2px);
+        }
+
+        .voice-input-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .output-section {
+            margin-top: 30px;
+        }
+
+        .story-display {
+            background: #f8f9fa;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 200px;
+            max-height: 500px;
+            overflow-y: auto;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4ecdc4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .audio-controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .audio-controls audio {
+            width: 100%;
+            margin-top: 10px;
+            border-radius: 12px;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e1e8ed;
+            z-index: 1;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #bdc3c7;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .step.active .step-number {
+            background: #4ecdc4;
+        }
+
+        .step.completed .step-number {
+            background: #ff6b6b;
+        }
+
+        .step-text {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        .step.active .step-text {
+            color: #4ecdc4;
+            font-weight: 600;
+        }
+
+        .step.completed .step-text {
+            color: #ff6b6b;
+        }
+
+        .debug-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            display: none;
+        }
+
+        .audio-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4fc;
+            border-radius: 5px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .story-stats {
+            margin-top: 10px;
+            text-align: right;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .prompt-suggestions {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        .prompt-suggestions button {
+            background: none;
+            border: none;
+            color: #3498db;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 0;
+            margin: 0 5px;
+            font-size: 14px;
+        }
+
+        .voice-status {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧚‍♀️ AI儿童音频故事生成器</h1>
+            <p>使用DeepSeek/MiniMax生成儿童音频故事</p>
+        </div>
+
+        <div class="content">
+            <div class="step-indicator">
+                <div class="step completed" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-text">设置故事参数</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-text">生成故事</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-text">合成语音</div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="keywords">故事主题或关键词：</label>
+                    <input type="text" id="keywords" placeholder="例如：勇敢的小兔子、魔法森林冒险、友谊的力量">
+                    <div class="prompt-suggestions" id="promptSuggestions">
+                        试试这些主题: 
+                        <button id="suggestion1">勇敢的小兔子</button>
+                        <button id="suggestion2">魔法森林冒险</button>
+                        <button id="suggestion3">友谊的力量</button>
+                        <button id="randomSuggestion">随机主题</button>
+                    </div>
+                    <button class="voice-input-btn" id="voiceInputBtn">
+                        🎤 语音输入提示词
+                    </button>
+                    <div class="voice-status" id="voiceStatus"></div>
+                </div>
+
+                <div class="selection-group">
+                    <div class="input-group">
+                        <label for="childGender">儿童性别：</label>
+                        <select id="childGender">
+                            <option value="男孩">👦 男孩</option>
+                            <option value="女孩">👧 女孩</option>
+                            <option value="不限" selected>👦👧 不限</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="ageGroup">年龄段：</label>
+                        <select id="ageGroup">
+                            <option value="3-5岁">3-5岁（幼儿）</option>
+                            <option value="6-8岁" selected>6-8岁（儿童）</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="storyLength">故事长度：</label>
+                        <select id="storyLength">
+                            <option value="500">500字（短篇）</option>
+                            <option value="1000" selected>1000字（中篇）</option>
+                            <option value="2000">2000字（长篇）</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="voiceSelect">讲述者声音：</label>
+                        <select id="voiceSelect">
+                            <!-- MiniMax国际站点支持的语音ID -->
+                            <option value="moss_audio_ce44fc67-7ce3-11f0-8de5-96e35d26fb85">🤖 莫斯中文音色1</option>
+                            <option value="moss_audio_aaa1346a-7ce7-11f0-8e61-2e6e3c7ee85d">🤖 莫斯中文音色2</option>
+                            <option value="Chinese (Mandarin)_Lyrical_Voice">🎵 中文抒情音色</option>
+                            <option value="Chinese (Mandarin)_HK_Flight_Attendant">✈️ 中文空乘音色</option>
+                            <option value="English_expressive_narrator">🎭 英文富有表现力的旁白</option>
+                            <option value="English_Graceful_Lady">👩 英文优雅的女声</option>
+                            <option value="English_Insightful_Speaker">💡 英文富有洞察力的演讲者</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="generate-btn" id="generateBtn">
+                        🪄 生成定制故事
+                    </button>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p id="loadingText">正在生成故事，请稍候...</p>
+            </div>
+
+            <div id="statusMessage"></div>
+
+            <div class="output-section">
+                <label>生成的儿童故事：</label>
+                <div class="story-display" id="storyDisplay">
+                    <p style="color: #7f8c8d; text-align: center; margin-top: 80px;">
+                        设置故事参数并点击生成，您将会看到一个精彩的定制儿童故事...
+                    </p>
+                </div>
+                <div class="story-stats" id="storyStats"></div>
+
+                <div class="debug-info" id="debugInfo"></div>
+                <div class="audio-info" id="audioInfo"></div>
+
+                <div class="audio-controls">
+                    <button class="play-btn" id="playBtn" disabled>
+                        🔊 播放故事语音
+                    </button>
+                    <audio id="audioPlayer" controls style="display: none;"></audio>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API密钥配置
+        const CONFIG = {
+            deepseekApiKey: 'sk-aae2a862b3ab4c498fa91f73c76ef9d3',
+            minimaxApiKey: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJEb25neHUgU2hlbiIsIlVzZXJOYW1lIjoiVmlydHVhbCBWaWV3IFRlY2hub2xvZ3kiLCJBY2NvdW50IjoiIiwiU3ViamVjdElEIjoiMTg5MDEzNjYyNDY1MDUyMzU2NyIsIlBob25lIjoiIiwiR3JvdXBJRCI6IjE4OTAxMzY2MjQ2NDIxMzQ5NTkiLCJQYWdlTmFtZSI6IiIsIk1haWwiOiJkYW5ueS5kb25neHUuc2hlbkBnbWFpbC5jb20iLCJDcmVhdGVUaW1lIjoiMjAyNS0xMS0yMyAyMTozNzowMCIsIlRva2VuVHlwZSI6MSwiaXNzIjoibWluaW1heCJ9.skY-6yvS8VV321ta7LxzoubBOWhlAzaJDrQ4HbK3_vaVtKMPuakO1lGBYJeGJDhQ12xhnlGn5z5fjQVb99N9BkekaNUY2n3PHdO01Ub6Wgfe3w62sGx538WhidIlwvgEMsFNhGbtHj2FGwaef6ZmGlxM6JmXg3J_bYSKYNu5UwlvZeXq3mddJdBCRlZ3d5RzKx9XpxpmeeRh_VzHlW6af5u1gbfD5Lc9vrxa5aNLqbYgUL6DO_RkXsy7kszlEnzOT-lWslgWmwh2lDS28LDEKacEZCymva196R-Dg2N1klgP585T1ZVud7UjWUZ445kmzU0W2tAroGDuQ9rCZVdBAA',
+            baiduSpeech: {
+                appId: '7258968',
+                apiKey: 'aFlSHz5qGHV2ZID4daou3Gqq',
+                secretKey: 'Jva3tSRyrH3fLHW98cxGhlDKQfCQ6RsJ'
+            }
+        };
+
+        // 全局变量
+        let currentAudioUrl = null;
+        let recognition = null;
+        let isRecording = false;
+
+        // 本地提示词库
+        const PROMPT_SUGGESTIONS = [
+            "勇敢的小兔子",
+            "魔法森林冒险", 
+            "友谊的力量",
+            "海底世界奇遇",
+            "太空探险记",
+            "会说话的小动物",
+            "彩虹桥的秘密",
+            "梦想成真的故事",
+            "勇敢面对恐惧",
+            "分享的快乐",
+            "帮助他人的小英雄",
+            "四季的变化",
+            "星星的愿望",
+            "月亮的秘密",
+            "太阳的微笑"
+        ];
+
+        // 更新步骤指示器
+        function updateStepIndicator(step) {
+            const steps = ['step1', 'step2', 'step3'];
+            steps.forEach((stepId, index) => {
+                const stepElement = document.getElementById(stepId);
+                if (index + 1 < step) {
+                    stepElement.classList.add('completed');
+                    stepElement.classList.remove('active');
+                } else if (index + 1 === step) {
+                    stepElement.classList.add('active');
+                    stepElement.classList.remove('completed');
+                } else {
+                    stepElement.classList.remove('active', 'completed');
+                }
+            });
+        }
+
+        // 显示状态消息
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // 显示调试信息
+        function showDebugInfo(info) {
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML = `<strong>调试信息:</strong> ${info}`;
+            debugDiv.style.display = 'block';
+        }
+
+        // 显示音频信息
+        function showAudioInfo(info) {
+            const audioInfo = document.getElementById('audioInfo');
+            audioInfo.innerHTML = info;
+            audioInfo.style.display = 'block';
+        }
+
+        // 显示故事统计信息
+        function showStoryStats(wordCount, charCount) {
+            const statsDiv = document.getElementById('storyStats');
+            statsDiv.innerHTML = `字数: ${wordCount} | 字符数: ${charCount}`;
+        }
+
+        // 显示语音状态
+        function showVoiceStatus(message, type = 'info') {
+            const voiceStatus = document.getElementById('voiceStatus');
+            voiceStatus.innerHTML = message;
+            voiceStatus.style.display = 'block';
+            voiceStatus.className = `voice-status ${type}`;
+        }
+
+        // 隐藏语音状态
+        function hideVoiceStatus() {
+            const voiceStatus = document.getElementById('voiceStatus');
+            voiceStatus.style.display = 'none';
+        }
+
+        // 十六进制字符串转字节数组
+        function hexToBytes(hex) {
+            const bytes = [];
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes.push(parseInt(hex.substr(i, 2), 16));
+            }
+            return new Uint8Array(bytes);
+        }
+
+        // 随机生成提示词
+        function generateRandomPrompt() {
+            const randomIndex = Math.floor(Math.random() * PROMPT_SUGGESTIONS.length);
+            return PROMPT_SUGGESTIONS[randomIndex];
+        }
+
+        // 设置随机提示词
+        function setRandomPrompt() {
+            const keywordsInput = document.getElementById('keywords');
+            keywordsInput.value = generateRandomPrompt();
+        }
+
+        // 生成故事提示词
+        function generateStoryPrompt(keywords, childGender, ageGroup, storyLength) {
+            let prompt = `请创作一个儿童故事，主题是关于"${keywords}"。`;
+            
+            // 根据性别调整
+            if (childGender !== "不限") {
+                prompt += ` 这个故事主要面向${childGender}，`;
+            }
+            
+            // 根据年龄段调整
+            if (ageGroup === "3-5岁") {
+                prompt += ` 适合3-5岁幼儿，要求语言简单易懂，句子短小，情节简单明了，富有童趣和想象力。`;
+            } else {
+                prompt += ` 适合6-8岁儿童，可以有稍微复杂一点的情节和更多细节，但仍要保持语言生动有趣。`;
+            }
+            
+            // 根据字数调整
+            prompt += ` 故事长度大约${storyLength}字。`;
+            
+            // 故事要求
+            prompt += ` 要求故事温馨、积极向上、富有教育意义，包含明确的开始、发展和结尾，但请不要使用"起承转合"这样的术语。`;
+            
+            // 语言风格
+            prompt += ` 使用适合儿童的语言风格，避免复杂词汇，可以适当使用拟声词和重复句式增强趣味性。`;
+            
+            return prompt;
+        }
+
+        // 百度语音识别 - 获取访问令牌
+        async function getBaiduAccessToken() {
+            try {
+                const response = await fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${CONFIG.baiduSpeech.apiKey}&client_secret=${CONFIG.baiduSpeech.secretKey}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.access_token) {
+                    return data.access_token;
+                } else {
+                    throw new Error('无法获取百度语音识别访问令牌');
+                }
+            } catch (error) {
+                console.error('获取百度语音识别令牌失败:', error);
+                throw error;
+            }
+        }
+
+        // 初始化语音识别
+        async function initSpeechRecognition() {
+            try {
+                // 检查浏览器是否支持语音识别
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    throw new Error('您的浏览器不支持语音识别功能，请使用Chrome、Edge等现代浏览器');
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                // 配置识别参数
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'zh-CN';
+                
+                // 设置事件处理
+                recognition.onstart = function() {
+                    isRecording = true;
+                    document.getElementById('voiceInputBtn').classList.add('recording');
+                    showVoiceStatus('🎤 正在聆听中...请开始说话', 'info');
+                };
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('keywords').value = transcript;
+                    showVoiceStatus(`✅ 识别成功: "${transcript}"`, 'success');
+                    
+                    // 3秒后隐藏状态消息
+                    setTimeout(() => {
+                        hideVoiceStatus();
+                    }, 3000);
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('语音识别错误:', event.error);
+                    let errorMessage = '语音识别失败，请重试';
+                    
+                    switch(event.error) {
+                        case 'not-allowed':
+                            errorMessage = '请允许浏览器使用麦克风权限';
+                            break;
+                        case 'no-speech':
+                            errorMessage = '没有检测到语音，请重试';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = '无法访问麦克风，请检查设备';
+                            break;
+                    }
+                    
+                    showVoiceStatus(`❌ ${errorMessage}`, 'error');
+                    stopRecording();
+                };
+                
+                recognition.onend = function() {
+                    stopRecording();
+                };
+                
+                return true;
+            } catch (error) {
+                console.error('初始化语音识别失败:', error);
+                showVoiceStatus(`❌ ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 开始录音
+        function startRecording() {
+            if (!recognition) {
+                if (!initSpeechRecognition()) {
+                    return;
+                }
+            }
+            
+            try {
+                recognition.start();
+            } catch (error) {
+                console.error('开始录音失败:', error);
+                showVoiceStatus('❌ 开始录音失败，请重试', 'error');
+            }
+        }
+
+        // 停止录音
+        function stopRecording() {
+            isRecording = false;
+            document.getElementById('voiceInputBtn').classList.remove('recording');
+            
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    // 忽略停止时的错误
+                }
+            }
+        }
+
+        // 切换录音状态
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        // 生成故事
+        async function generateStory() {
+            const keywords = document.getElementById('keywords').value.trim();
+            const childGender = document.getElementById('childGender').value;
+            const ageGroup = document.getElementById('ageGroup').value;
+            const storyLength = document.getElementById('storyLength').value;
+            const generateBtn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            const storyDisplay = document.getElementById('storyDisplay');
+            const playBtn = document.getElementById('playBtn');
+
+            if (!keywords) {
+                showStatus('请输入故事主题或关键词！', 'error');
+                return;
+            }
+
+            // 重置状态
+            generateBtn.disabled = true;
+            playBtn.disabled = true;
+            loading.style.display = 'block';
+            updateStepIndicator(2);
+            storyDisplay.innerHTML = '<p style="color: #7f8c8d; text-align: center; margin-top: 80px;">正在创作定制儿童故事...</p>';
+            document.getElementById('debugInfo').style.display = 'none';
+            document.getElementById('audioInfo').style.display = 'none';
+            document.getElementById('storyStats').innerHTML = '';
+            
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = null;
+            }
+            
+            document.getElementById('audioPlayer').style.display = 'none';
+
+            try {
+                // 第一步：调用DeepSeek API生成故事
+                loadingText.textContent = '🤖 正在调用DeepSeek生成定制故事...';
+                
+                const storyPrompt = generateStoryPrompt(keywords, childGender, ageGroup, storyLength);
+                
+                showDebugInfo(`生成提示词: ${storyPrompt}`);
+                
+                const storyResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${CONFIG.deepseekApiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [{
+                            role: 'user',
+                            content: storyPrompt
+                        }],
+                        max_tokens: 4000,
+                        temperature: 0.7
+                    })
+                });
+
+                if (!storyResponse.ok) {
+                    throw new Error(`DeepSeek API错误: ${storyResponse.status}`);
+                }
+
+                const storyData = await storyResponse.json();
+                const generatedStory = storyData.choices[0].message.content;
+
+                // 显示生成的故事
+                storyDisplay.innerHTML = `<p>${generatedStory.replace(/\n/g, '<br>')}</p>`;
+                
+                // 显示故事统计
+                const wordCount = generatedStory.replace(/\s/g, '').length;
+                const charCount = generatedStory.length;
+                showStoryStats(wordCount, charCount);
+                
+                showStatus('故事生成成功！正在合成语音...', 'success');
+
+                // 第二步：调用MiniMax国际站点API合成语音
+                loadingText.textContent = '🎵 正在调用MiniMax国际站点合成语音...';
+                updateStepIndicator(3);
+
+                const voiceId = document.getElementById('voiceSelect').value;
+                
+                // 使用MiniMax国际站点API的正确格式
+                const requestData = {
+                    model: 'speech-2.6-hd',
+                    text: generatedStory,
+                    stream: false,
+                    voice_setting: {
+                        voice_id: voiceId,
+                        speed: ageGroup === "3-5岁" ? 0.8 : 0.9,
+                        vol: 1.0,
+                        pitch: 0,
+                        emotion: 'happy'
+                    },
+                    audio_setting: {
+                        format: "mp3",
+                        sample_rate: 32000,
+                        bitrate: 128000,
+                        channel: 1
+                    },
+                    output_format: 'hex',
+                    language_boost: 'Chinese'
+                };
+                
+                showDebugInfo(`发送请求到MiniMax国际站点API，语音ID: ${voiceId}`);
+                
+                const ttsResponse = await fetch('https://api.minimax.io/v1/t2a_v2', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${CONFIG.minimaxApiKey}`
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!ttsResponse.ok) {
+                    const errorText = await ttsResponse.text();
+                    showDebugInfo(`MiniMax API响应状态: ${ttsResponse.status}, 响应内容: ${errorText}`);
+                    throw new Error(`MiniMax TTS API错误: ${ttsResponse.status}`);
+                }
+
+                // 解析JSON响应
+                const responseJson = await ttsResponse.json();
+                
+                // 检查响应结构
+                if (responseJson.base_resp && responseJson.base_resp.status_code !== 0) {
+                    showDebugInfo(`MiniMax API错误: ${JSON.stringify(responseJson)}`);
+                    throw new Error(`MiniMax API错误: ${responseJson.base_resp.status_msg}`);
+                }
+
+                // 检查是否有音频数据
+                if (!responseJson.data || !responseJson.data.audio) {
+                    showDebugInfo(`API响应不包含音频数据: ${JSON.stringify(responseJson)}`);
+                    throw new Error('API响应不包含音频数据');
+                }
+
+                // 处理十六进制音频数据
+                showDebugInfo('处理十六进制音频数据...');
+                const audioHex = responseJson.data.audio;
+                showDebugInfo(`音频十六进制数据长度: ${audioHex.length} 字符`);
+                
+                // 将十六进制字符串转换为字节数组
+                const audioBytes = hexToBytes(audioHex);
+                showDebugInfo(`转换为 ${audioBytes.length} 字节`);
+                
+                // 创建Blob
+                const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+                
+                if (audioBlob.size === 0) {
+                    throw new Error('转换后的音频数据为空');
+                }
+                
+                showDebugInfo(`音频Blob大小: ${(audioBlob.size / 1024).toFixed(2)} KB`);
+                
+                currentAudioUrl = URL.createObjectURL(audioBlob);
+                
+                // 设置音频播放器
+                const audioPlayer = document.getElementById('audioPlayer');
+                audioPlayer.src = currentAudioUrl;
+                audioPlayer.style.display = 'block';
+
+                // 添加加载事件监听
+                await new Promise((resolve, reject) => {
+                    audioPlayer.onloadeddata = () => {
+                        showDebugInfo('音频加载成功');
+                        resolve();
+                    };
+                    audioPlayer.onerror = () => {
+                        reject(new Error('音频加载失败'));
+                    };
+                    
+                    // 设置超时
+                    setTimeout(() => {
+                        reject(new Error('音频加载超时'));
+                    }, 10000);
+                });
+
+                showStatus('故事和语音都已生成完成！点击播放按钮聆听。', 'success');
+                playBtn.disabled = false;
+                updateStepIndicator(1);
+                
+                // 显示音频信息
+                if (responseJson.extra_info) {
+                    const info = responseJson.extra_info;
+                    showAudioInfo(`故事时长: ${Math.round(info.audio_length/1000)}秒, 文件大小: ${(info.audio_size/1024).toFixed(1)}KB, 格式: ${info.audio_format}`);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus(`生成失败: ${error.message}`, 'error');
+                storyDisplay.innerHTML = '<p style="color: #e74c3c; text-align: center; margin-top: 80px;">生成失败，请重试或检查API密钥。</p>';
+            } finally {
+                generateBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        // 播放音频
+        function playAudio() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playBtn = document.getElementById('playBtn');
+            
+            if (currentAudioUrl && audioPlayer.src) {
+                audioPlayer.play().then(() => {
+                    playBtn.textContent = '⏸️ 播放中...';
+                    showStatus('音频播放中...', 'info');
+                }).catch(error => {
+                    showStatus('音频播放失败: ' + error.message, 'error');
+                });
+                
+                // 监听播放结束
+                audioPlayer.onended = function() {
+                    playBtn.textContent = '🔊 播放故事语音';
+                    showStatus('故事播放完毕！', 'success');
+                };
+            } else {
+                showStatus('音频未准备好，请重新生成', 'error');
+            }
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStepIndicator(1);
+            
+            // 绑定生成按钮事件
+            document.getElementById('generateBtn').addEventListener('click', generateStory);
+            
+            // 绑定播放按钮事件
+            document.getElementById('playBtn').addEventListener('click', playAudio);
+            
+            // 绑定语音输入按钮事件
+            document.getElementById('voiceInputBtn').addEventListener('click', toggleRecording);
+            
+            // 绑定提示词建议按钮事件
+            document.getElementById('suggestion1').addEventListener('click', function() {
+                document.getElementById('keywords').value = this.textContent;
+            });
+            
+            document.getElementById('suggestion2').addEventListener('click', function() {
+                document.getElementById('keywords').value = this.textContent;
+            });
+            
+            document.getElementById('suggestion3').addEventListener('click', function() {
+                document.getElementById('keywords').value = this.textContent;
+            });
+            
+            document.getElementById('randomSuggestion').addEventListener('click', setRandomPrompt);
+            
+            // 回车键触发生成
+            document.getElementById('keywords').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    generateStory();
+                }
+            });
+
+            // 页面加载时设置随机提示词
+            setRandomPrompt();
+            
+            // 初始化语音识别
+            initSpeechRecognition();
+            
+            // 显示初始状态
+            showStatus('准备好生成定制儿童故事！请设置故事参数并点击生成按钮。', 'info');
+        });
+
+        // 清理音频URL防止内存泄漏
+        window.addEventListener('beforeunload', function() {
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+            }
+        });
+    </script>
+</body>
+</html>

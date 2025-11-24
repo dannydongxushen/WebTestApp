@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js 3D交互式照片墙</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #upload-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 300px;
+        }
+        
+        #upload-label {
+            display: block;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        #photo-upload {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            color: white;
+        }
+        
+        #upload-status {
+            font-size: 14px;
+            color: #4ade80;
+            margin-bottom: 10px;
+        }
+        
+        #photo-count {
+            font-size: 12px;
+            color: #ccc;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 100;
+        }
+        
+        .instruction-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+
+        #debug-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #ff4444;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="upload-container">
+        <label id="upload-label" for="photo-upload">📸 上传照片 (最多12张)</label>
+        <input type="file" id="photo-upload" accept="image/*" multiple>
+        <div id="upload-status">等待上传照片...</div>
+        <div id="photo-count">已上传: 0/12 张</div>
+    </div>
+    
+    <div id="instructions">
+        <div class="instruction-item">🖱️ 点击照片: 放大查看</div>
+        <div class="instruction-item">👆 水平滑动/键盘左右键: 切换照片</div>
+        <div class="instruction-item">🖱️ 双击/ESC键: 返回照片墙</div>
+    </div>
+
+    <div id="debug-info"></div>
+
+    <!-- 引入Three.js和相关组件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // 全局变量
+        let scene, camera, renderer, controls;
+        let photoWall = [];
+        let currentPhotoIndex = -1;
+        let isViewingPhoto = false;
+        let photoFrameGroups = []; // 改为存储整个相框组
+        let raycaster, mouse;
+        let wall;
+        let uploadedPhotos = 0;
+        
+        // 初始化场景
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 12);
+            
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // 添加轨道控制器
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 8;
+            controls.maxDistance = 30;
+            
+            // 初始化光线投射和鼠标交互
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // 创建墙面和灯光
+            createWall();
+            setupLighting();
+            
+            // 添加事件监听
+            setupEventListeners();
+            
+            // 开始动画循环
+            animate();
+
+            updateDebugInfo('场景初始化完成');
+        }
+        
+        // 创建墙面
+        function createWall() {
+            // 墙面几何体
+            const wallGeometry = new THREE.PlaneGeometry(30, 20);
+            
+            // 墙面材质 - 砖墙纹理
+            const wallMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            
+            wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.rotation.x = -Math.PI / 2;
+            wall.position.y = -3;
+            wall.receiveShadow = true;
+            scene.add(wall);
+
+            updateDebugInfo('墙面创建完成');
+        }
+        
+        // 设置灯光
+        function setupLighting() {
+            // 环境光
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            // 方向光
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(10, 15, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // 点光源
+            const pointLight = new THREE.PointLight(0xff8844, 0.8, 50);
+            pointLight.position.set(-8, 8, 8);
+            pointLight.castShadow = true;
+            scene.add(pointLight);
+
+            updateDebugInfo('灯光设置完成');
+        }
+        
+        // 创建照片墙布局
+        function createPhotoWall() {
+            // 清空现有的相框
+            photoFrameGroups.forEach(group => {
+                scene.remove(group);
+            });
+            photoFrameGroups = [];
+            photoWall = [];
+            uploadedPhotos = 0;
+
+            updateDebugInfo('开始创建照片墙布局');
+            
+            // 3行4列布局
+            const rows = 3;
+            const cols = 4;
+            const spacingX = 6;
+            const spacingY = 4.5;
+            const startX = -((cols - 1) * spacingX) / 2;
+            const startY = ((rows - 1) * spacingY) / 2;
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const index = row * cols + col;
+                    
+                    // 创建相框组
+                    const frameGroup = new THREE.Group();
+                    
+                    // 创建照片平面 - 稍微缩小以留出相框空间
+                    const photoGeometry = new THREE.PlaneGeometry(3.5, 2.5);
+                    const photoMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x333333,
+                        transparent: true,
+                        opacity: 0.3,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const photoMesh = new THREE.Mesh(photoGeometry, photoMaterial);
+                    photoMesh.userData = { 
+                        type: 'photo', 
+                        index: index, 
+                        isEmpty: true,
+                        originalPosition: new THREE.Vector3(),
+                        originalRotation: new THREE.Euler()
+                    };
+                    
+                    // 创建木质相框
+                    const frameDepth = 0.3;
+                    const frameMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x8B4513,
+                        roughness: 0.7,
+                        metalness: 0.1
+                    });
+                    
+                    // 创建相框的四个边
+                    const frameTop = new THREE.Mesh(
+                        new THREE.BoxGeometry(4, 0.2, frameDepth),
+                        frameMaterial
+                    );
+                    frameTop.position.y = 1.35;
+                    
+                    const frameBottom = new THREE.Mesh(
+                        new THREE.BoxGeometry(4, 0.2, frameDepth),
+                        frameMaterial
+                    );
+                    frameBottom.position.y = -1.35;
+                    
+                    const frameLeft = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.2, 2.7, frameDepth),
+                        frameMaterial
+                    );
+                    frameLeft.position.x = -1.85;
+                    
+                    const frameRight = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.2, 2.7, frameDepth),
+                        frameMaterial
+                    );
+                    frameRight.position.x = 1.85;
+                    
+                    // 添加到组
+                    frameGroup.add(photoMesh);
+                    frameGroup.add(frameTop);
+                    frameGroup.add(frameBottom);
+                    frameGroup.add(frameLeft);
+                    frameGroup.add(frameRight);
+                    
+                    // 计算位置
+                    frameGroup.position.x = startX + col * spacingX;
+                    frameGroup.position.y = startY - row * spacingY;
+                    frameGroup.position.z = 0.1; // 稍微离开墙面
+                    
+                    // 保存原始位置和旋转
+                    photoMesh.userData.originalPosition = frameGroup.position.clone();
+                    photoMesh.userData.originalRotation = frameGroup.rotation.clone();
+                    
+                    // 添加到场景
+                    scene.add(frameGroup);
+                    photoFrameGroups.push(frameGroup);
+
+                    // 为照片网格添加交互属性
+                    photoMesh.userData.parentGroup = frameGroup;
+                }
+            }
+
+            updateDebugInfo(`照片墙布局完成，共创建 ${rows * cols} 个相框位置`);
+        }
+        
+        // 处理照片上传
+        function handlePhotoUpload(event) {
+            const files = event.target.files;
+            const maxPhotos = 12;
+            
+            if (files.length > maxPhotos) {
+                alert(`最多只能上传 ${maxPhotos} 张照片`);
+                return;
+            }
+            
+            // 首次上传时创建照片墙
+            if (photoFrameGroups.length === 0) {
+                createPhotoWall();
+            }
+            
+            updateDebugInfo(`开始处理 ${files.length} 张照片上传`);
+            
+            let loadedCount = 0;
+            
+            for (let i = 0; i < Math.min(files.length, maxPhotos); i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // 找到下一个可用的相框位置
+                        const availableIndex = findAvailablePhotoSlot();
+                        if (availableIndex === -1) {
+                            updateDebugInfo('错误: 找不到可用的相框位置');
+                            return;
+                        }
+                        
+                        // 创建纹理
+                        const texture = new THREE.Texture(img);
+                        texture.needsUpdate = true;
+                        
+                        // 创建照片材质
+                        const photoMaterial = new THREE.MeshStandardMaterial({
+                            map: texture,
+                            side: THREE.DoubleSide,
+                            transparent: true
+                        });
+                        
+                        // 获取对应的照片网格
+                        const photoMesh = photoFrameGroups[availableIndex].children[0];
+                        
+                        // 更新材质
+                        photoMesh.material = photoMaterial;
+                        photoMesh.userData.isEmpty = false;
+                        photoMesh.userData.texture = texture;
+                        
+                        // 存储照片信息
+                        photoWall[availableIndex] = {
+                            texture: texture,
+                            material: photoMaterial,
+                            originalPosition: photoMesh.userData.originalPosition.clone(),
+                            originalRotation: photoMesh.userData.originalRotation.clone(),
+                            index: availableIndex
+                        };
+                        
+                        loadedCount++;
+                        uploadedPhotos = loadedCount;
+                        
+                        // 更新UI
+                        document.getElementById('upload-status').textContent = 
+                            `已加载 ${loadedCount}/${files.length} 张照片`;
+                        document.getElementById('photo-count').textContent = 
+                            `已上传: ${uploadedPhotos}/12 张`;
+                        
+                        updateDebugInfo(`照片 ${loadedCount} 加载完成，位置: ${availableIndex}`);
+                        
+                        if (loadedCount === files.length) {
+                            document.getElementById('upload-status').textContent = 
+                                `✅ 所有照片加载完成!`;
+                            updateDebugInfo(`所有 ${files.length} 张照片加载完成`);
+                        }
+                    };
+                    
+                    img.onerror = function() {
+                        updateDebugInfo(`错误: 无法加载图片 ${i}`);
+                        loadedCount++;
+                    };
+                    
+                    img.src = e.target.result;
+                };
+                
+                reader.onerror = function() {
+                    updateDebugInfo(`错误: 无法读取文件 ${i}`);
+                    loadedCount++;
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // 找到可用的照片槽位
+        function findAvailablePhotoSlot() {
+            for (let i = 0; i < photoFrameGroups.length; i++) {
+                const photoMesh = photoFrameGroups[i].children[0];
+                if (photoMesh.userData.isEmpty) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        // 设置事件监听
+        function setupEventListeners() {
+            // 照片上传
+            document.getElementById('photo-upload').addEventListener('change', handlePhotoUpload);
+            
+            // 鼠标点击事件
+            renderer.domElement.addEventListener('click', onMouseClick);
+            
+            // 鼠标移动事件（用于射线检测）
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            
+            // 触摸滑动事件
+            let touchStartX = 0;
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+            });
+            
+            renderer.domElement.addEventListener('touchend', (e) => {
+                if (!isViewingPhoto) return;
+                
+                const touchEndX = e.changedTouches[0].clientX;
+                const diffX = touchEndX - touchStartX;
+                
+                if (Math.abs(diffX) > 50) {
+                    if (diffX > 0) {
+                        showPreviousPhoto();
+                    } else {
+                        showNextPhoto();
+                    }
+                }
+            });
+            
+            // 窗口大小调整
+            window.addEventListener('resize', onWindowResize);
+            
+            // 双击事件
+            renderer.domElement.addEventListener('dblclick', onDoubleClick);
+            
+            updateDebugInfo('事件监听器设置完成');
+        }
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        }
+        
+        function onMouseClick(event) {
+            if (isViewingPhoto) return;
+            
+            // 更新射线
+            raycaster.setFromCamera(mouse, camera);
+            
+            // 收集所有照片网格进行检测
+            const photoMeshes = photoFrameGroups.map(group => group.children[0]);
+            const intersects = raycaster.intersectObjects(photoMeshes);
+            
+            if (intersects.length > 0) {
+                const photoMesh = intersects[0].object;
+                if (!photoMesh.userData.isEmpty) {
+                    currentPhotoIndex = photoMesh.userData.index;
+                    updateDebugInfo(`点击照片: ${currentPhotoIndex}`);
+                    zoomPhoto(currentPhotoIndex);
+                }
+            }
+        }
+        
+        function onDoubleClick(event) {
+            if (isViewingPhoto) {
+                updateDebugInfo('双击返回照片墙');
+                returnPhotoToWall();
+            }
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // 放大显示照片
+        function zoomPhoto(index) {
+            if (index < 0 || photoWall[index] === undefined) {
+                updateDebugInfo(`错误: 照片索引 ${index} 无效`);
+                return;
+            }
+            
+            isViewingPhoto = true;
+            currentPhotoIndex = index;
+            
+            const frameGroup = photoFrameGroups[index];
+            const photoMesh = frameGroup.children[0];
+            
+            updateDebugInfo(`放大照片 ${index}`);
+            
+            // 动画到相机前方
+            const targetPosition = new THREE.Vector3(0, 0, 5);
+            const targetRotation = new THREE.Euler(0, 0, 0);
+            
+            // 动画到指定位置
+            animateToPosition(frameGroup, targetPosition, targetRotation, 1000);
+            
+            // 隐藏其他照片
+            photoFrameGroups.forEach((group, i) => {
+                if (i !== index) {
+                    group.visible = false;
+                }
+            });
+            
+            // 禁用轨道控制
+            controls.enabled = false;
+        }
+        
+        // 显示下一张照片
+        function showNextPhoto() {
+            if (!isViewingPhoto) return;
+            
+            let nextIndex = (currentPhotoIndex + 1) % photoFrameGroups.length;
+            let attempts = 0;
+            
+            // 寻找下一张有照片的位置
+            while (photoWall[nextIndex] === undefined && attempts < photoFrameGroups.length) {
+                nextIndex = (nextIndex + 1) % photoFrameGroups.length;
+                attempts++;
+            }
+            
+            if (photoWall[nextIndex] !== undefined && nextIndex !== currentPhotoIndex) {
+                updateDebugInfo(`切换到下一张照片: ${nextIndex}`);
+                
+                // 先将当前照片返回
+                const currentFrameGroup = photoFrameGroups[currentPhotoIndex];
+                animateToPosition(
+                    currentFrameGroup, 
+                    photoWall[currentPhotoIndex].originalPosition, 
+                    photoWall[currentPhotoIndex].originalRotation, 
+                    500
+                );
+                
+                // 然后放大下一张
+                setTimeout(() => {
+                    currentPhotoIndex = nextIndex;
+                    zoomPhoto(nextIndex);
+                }, 500);
+            }
+        }
+        
+        // 显示上一张照片
+        function showPreviousPhoto() {
+            if (!isViewingPhoto) return;
+            
+            let prevIndex = (currentPhotoIndex - 1 + photoFrameGroups.length) % photoFrameGroups.length;
+            let attempts = 0;
+            
+            // 寻找上一张有照片的位置
+            while (photoWall[prevIndex] === undefined && attempts < photoFrameGroups.length) {
+                prevIndex = (prevIndex - 1 + photoFrameGroups.length) % photoFrameGroups.length;
+                attempts++;
+            }
+            
+            if (photoWall[prevIndex] !== undefined && prevIndex !== currentPhotoIndex) {
+                updateDebugInfo(`切换到上一张照片: ${prevIndex}`);
+                
+                // 先将当前照片返回
+                const currentFrameGroup = photoFrameGroups[currentPhotoIndex];
+                animateToPosition(
+                    currentFrameGroup, 
+                    photoWall[currentPhotoIndex].originalPosition, 
+                    photoWall[currentPhotoIndex].originalRotation, 
+                    500
+                );
+                
+                // 然后放大上一张
+                setTimeout(() => {
+                    currentPhotoIndex = prevIndex;
+                    zoomPhoto(prevIndex);
+                }, 500);
+            }
+        }
+        
+        // 返回照片到墙上
+        function returnPhotoToWall() {
+            if (!isViewingPhoto || currentPhotoIndex < 0) return;
+            
+            const frameGroup = photoFrameGroups[currentPhotoIndex];
+            
+            updateDebugInfo(`返回照片 ${currentPhotoIndex} 到墙面`);
+            
+            // 动画返回原始位置
+            animateToPosition(
+                frameGroup, 
+                photoWall[currentPhotoIndex].originalPosition, 
+                photoWall[currentPhotoIndex].originalRotation, 
+                1000
+            );
+            
+            // 显示所有照片
+            setTimeout(() => {
+                photoFrameGroups.forEach(group => {
+                    group.visible = true;
+                });
+                
+                isViewingPhoto = false;
+                controls.enabled = true;
+                currentPhotoIndex = -1;
+            }, 1000);
+        }
+        
+        // 动画到指定位置
+        function animateToPosition(object, targetPosition, targetRotation, duration) {
+            const startPosition = object.position.clone();
+            const startRotation = object.rotation.clone();
+            const startTime = Date.now();
+            
+            function update() {
+                const currentTime = Date.now();
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // 使用缓动函数
+                const easeProgress = easeInOutCubic(progress);
+                
+                // 更新位置
+                object.position.lerpVectors(startPosition, targetPosition, easeProgress);
+                
+                // 更新旋转
+                object.rotation.x = startRotation.x + (targetRotation.x - startRotation.x) * easeProgress;
+                object.rotation.y = startRotation.y + (targetRotation.y - startRotation.y) * easeProgress;
+                object.rotation.z = startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            update();
+        }
+        
+        // 缓动函数
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+        
+        // 更新调试信息
+        function updateDebugInfo(message) {
+            document.getElementById('debug-info').textContent = `调试: ${message}`;
+            console.log(`DEBUG: ${message}`);
+        }
+        
+        // 键盘事件
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowLeft') {
+                showPreviousPhoto();
+            } else if (event.key === 'ArrowRight') {
+                showNextPhoto();
+            } else if (event.key === 'Escape') {
+                returnPhotoToWall();
+            }
+        });
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 更新控制器
+            if (controls.enabled) {
+                controls.update();
+            }
+            
+            // 渲染场景
+            renderer.render(scene, camera);
+        }
+        
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>

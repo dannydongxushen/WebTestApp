@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR图片文字识别 - 解决CORS问题</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .info-box {
+            background: #e8f4fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .info-box.error {
+            background: #fde8e8;
+            border-left-color: #e74c3c;
+        }
+        
+        .upload-area {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            background-color: #f8fafc;
+        }
+        
+        .upload-area:hover {
+            border-color: #2ecc71;
+            background-color: #f0f7ff;
+        }
+        
+        .upload-area p {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .upload-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .upload-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .preview-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .image-preview, .result-area {
+            width: 100%;
+        }
+        
+        .image-preview {
+            text-align: center;
+        }
+        
+        .image-preview img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            display: none;
+        }
+        
+        .result-area {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 150px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        #resultText {
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success {
+            background-color: #f8fff8;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .error {
+            background-color: #fff8f8;
+            border-left: 4px solid #f44336;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .solution-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        .solution-button {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .solution-button:hover {
+            background: #2980b9;
+        }
+        
+        .solution-button.active {
+            background: #2ecc71;
+        }
+        
+        .proxy-option {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .proxy-option label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .proxy-option input {
+            margin: 0;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .solution-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OCR图片文字识别 - 解决CORS问题</h1>
+        
+        <div class="info-box">
+            <p><strong>CORS问题说明：</strong>浏览器安全策略阻止了从前端页面直接访问有道智云API。</p>
+            <p>请尝试以下解决方案：</p>
+            <ul>
+                <li>使用本地服务器运行此页面</li>
+                <li>使用代理服务绕过CORS限制</li>
+                <li>使用模拟数据测试页面功能</li>
+            </ul>
+        </div>
+        
+        <div class="proxy-option">
+            <label>
+                <input type="checkbox" id="useProxy">
+                使用代理服务绕过CORS限制
+            </label>
+        </div>
+        
+        <div class="upload-area">
+            <p>上传图片进行文字识别</p>
+            <button class="upload-button" id="uploadButton">
+                选择图片
+            </button>
+            <input type="file" id="fileInput" accept="image/jpeg, image/png, image/bmp">
+        </div>
+        
+        <div class="solution-buttons">
+            <button class="solution-button" id="testSuccess">模拟成功识别</button>
+            <button class="solution-button" id="testError">模拟识别错误</button>
+            <button class="solution-button" id="setupLocal">设置本地服务器指南</button>
+        </div>
+        
+        <div class="preview-area hidden" id="previewArea">
+            <div class="image-preview">
+                <img id="previewImage" src="#" alt="预览图片">
+            </div>
+            
+            <div class="result-area" id="resultArea">
+                <h3>识别结果</h3>
+                <div id="resultText">识别结果将显示在这里...</div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loadingIndicator">
+            <div class="loading-spinner"></div>
+            <p>正在识别中，请稍候...</p>
+        </div>
+        
+        <div class="info-box hidden" id="localServerInfo">
+            <h3>设置本地服务器指南</h3>
+            <p>要解决CORS问题，最简单的方法是使用本地服务器运行此页面：</p>
+            <ol>
+                <li>安装Node.js（从官网下载）</li>
+                <li>打开命令行/终端，导航到保存此HTML文件的目录</li>
+                <li>运行命令：<code>npx http-server</code></li>
+                <li>在浏览器中访问显示的URL（通常是http://localhost:8080）</li>
+            </ol>
+            <p>或者，您也可以使用Python：</p>
+            <ul>
+                <li>Python 3: <code>python -m http.server 8000</code></li>
+                <li>Python 2: <code>python -m SimpleHTTPServer 8000</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const fileInput = document.getElementById('fileInput');
+            const uploadButton = document.getElementById('uploadButton');
+            const previewImage = document.getElementById('previewImage');
+            const resultText = document.getElementById('resultText');
+            const resultArea = document.getElementById('resultArea');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const previewArea = document.getElementById('previewArea');
+            const testSuccessButton = document.getElementById('testSuccess');
+            const testErrorButton = document.getElementById('testError');
+            const setupLocalButton = document.getElementById('setupLocal');
+            const useProxyCheckbox = document.getElementById('useProxy');
+            const localServerInfo = document.getElementById('localServerInfo');
+            
+            // 有道智云OCR配置
+            const YOUDAO_APP_ID = '68a7a31d629d52e4';
+            const YOUDAO_APP_KEY = 'Oa1fWMINWANBamI687S8HbWEc1Rtisn5';
+            const MAX_SIZE = 1 * 1024 * 1024; // 1MB限制
+            const TIMEOUT = 15000; // 15秒超时
+
+            let currentImageFile = null;
+            let timeoutId = null;
+            
+            // 上传按钮点击事件
+            uploadButton.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // 文件选择变化事件
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length) {
+                    resetPage();
+                    handleImageFile(fileInput.files[0]);
+                }
+            });
+            
+            // 测试按钮事件
+            testSuccessButton.addEventListener('click', function() {
+                resetPage();
+                showLoading();
+                
+                // 模拟API调用延迟
+                setTimeout(function() {
+                    const mockResult = {
+                        Result: {
+                            regions: [
+                                {
+                                    lines: [
+                                        { text: "商品名称: 苹果" },
+                                        { text: "规格: 1.2斤" },
+                                        { text: "价格: 12.5元" }
+                                    ]
+                                }
+                            ]
+                        }
+                    };
+                    
+                    const text = extractTextFromYoudaoResult(mockResult);
+                    resultArea.className = 'result-area success';
+                    resultText.textContent = text;
+                    hideLoading();
+                }, 2000);
+            });
+            
+            testErrorButton.addEventListener('click', function() {
+                resetPage();
+                showLoading();
+                
+                // 模拟API调用延迟
+                setTimeout(function() {
+                    resultArea.className = 'result-area error';
+                    resultText.textContent = "模拟错误: API请求超时，请检查网络连接";
+                    hideLoading();
+                }, 2000);
+            });
+            
+            // 显示本地服务器设置指南
+            setupLocalButton.addEventListener('click', function() {
+                localServerInfo.classList.toggle('hidden');
+            });
+            
+            // 重置页面函数
+            function resetPage() {
+                // 清除超时定时器
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                
+                // 隐藏预览区域
+                previewArea.classList.add('hidden');
+                
+                // 清除图片预览
+                previewImage.src = "#";
+                previewImage.style.display = 'none';
+                
+                // 清除结果
+                resultText.textContent = '识别结果将显示在这里...';
+                resultArea.className = 'result-area';
+                
+                // 隐藏加载指示器
+                hideLoading();
+            }
+            
+            // 处理图片文件
+            async function handleImageFile(file) {
+                // 检查文件类型
+                const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
+                if (!validTypes.includes(file.type)) {
+                    alert('请上传JPG、PNG或BMP格式的图片文件');
+                    return;
+                }
+                
+                // 显示加载状态
+                showLoading();
+                resultText.textContent = '正在处理图片...';
+                
+                try {
+                    // 静默压缩图片（如果需要）
+                    let processedFile = file;
+                    if (file.size > MAX_SIZE) {
+                        processedFile = await compressImageSilently(file);
+                    }
+                    
+                    currentImageFile = processedFile;
+                    
+                    // 显示图片预览
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImage.src = e.target.result;
+                        previewImage.style.display = 'block';
+                        resultText.textContent = '正在识别中...';
+                        
+                        // 显示预览区域
+                        previewArea.classList.remove('hidden');
+                        
+                        // 设置超时定时器
+                        timeoutId = setTimeout(function() {
+                            resultArea.className = 'result-area error';
+                            resultText.textContent = "请求超时，请检查网络连接或重试";
+                            hideLoading();
+                        }, TIMEOUT);
+                        
+                        // 自动开始识别
+                        recognizeText(currentImageFile);
+                    };
+                    reader.readAsDataURL(processedFile);
+                    
+                } catch (error) {
+                    console.error('图片处理错误:', error);
+                    resultText.textContent = '图片处理失败，请重试';
+                    hideLoading();
+                }
+            }
+            
+            // 静默压缩图片函数
+            async function compressImageSilently(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const img = new Image();
+                        img.onload = function() {
+                            // 智能压缩策略
+                            const longestSide = Math.max(img.width, img.height);
+                            let targetSize = longestSide;
+                            let newWidth, newHeight;
+
+                            // 根据文件大小和尺寸决定压缩策略
+                            if (file.size > MAX_SIZE) {
+                                // 超大文件，激进压缩
+                                if (longestSide > 1024) targetSize = 1024;
+                                else targetSize = longestSide;
+
+                                // 计算新尺寸
+                                if (img.width > img.height) {
+                                    newWidth = targetSize;
+                                    newHeight = Math.round((img.height * targetSize) / img.width);
+                                } else {
+                                    newHeight = targetSize;
+                                    newWidth = Math.round((img.width * targetSize) / img.height);
+                                }    
+                            } 
+                            else {
+                                // 小于MAX_SIZE，保持原尺寸
+                                targetSize = longestSide;
+                                newHeight = img.height;
+                                newWidth = img.width; 
+                            }
+                            
+                            // 创建Canvas进行压缩
+                            const canvas = document.createElement('canvas');
+                            canvas.width = newWidth;
+                            canvas.height = newHeight;
+                            
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                            
+                            // 获取压缩后的Blob
+                            canvas.toBlob(function(blob) {
+                                // 如果压缩后仍然大于MAX_SIZE，进行二次压缩
+                                if (blob.size > MAX_SIZE) {
+                                    // 进一步降低质量和尺寸
+                                    const quality = 0.7;
+                                    const smallerSize = Math.min(800, targetSize * 0.7);
+                                    
+                                    let finalWidth, finalHeight;
+                                    if (img.width > img.height) {
+                                        finalWidth = smallerSize;
+                                        finalHeight = Math.round((img.height * smallerSize) / img.width);
+                                    } else {
+                                        finalHeight = smallerSize;
+                                        finalWidth = Math.round((img.width * smallerSize) / img.height);
+                                    }
+                                    
+                                    canvas.width = finalWidth;
+                                    canvas.height = finalHeight;
+                                    ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+                                    
+                                    canvas.toBlob(function(finalBlob) {
+                                        resolve(finalBlob);
+                                    }, 'image/jpeg', quality);
+                                } else {
+                                    resolve(blob);
+                                }
+                            }, 'image/jpeg', 0.8);
+                        };
+                        img.src = e.target.result;
+                    };
+                    
+                    reader.onerror = function() {
+                        reject(new Error('文件读取失败'));
+                    };
+                    
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            // 调用有道智云OCR API识别文字
+            async function recognizeText(imageFile) {
+                try {
+                    // 将图片转换为Base64
+                    const base64Image = await fileToBase64(imageFile);
+                    // 去掉Base64前缀
+                    const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+                    
+                    // 生成随机数和时间戳
+                    const salt = (new Date()).getTime();
+                    const curtime = Math.round(new Date().getTime() / 1000);
+                    
+                    // 计算签名
+                    const signStr = YOUDAO_APP_ID + truncate(pureBase64) + salt + curtime + YOUDAO_APP_KEY;
+                    const sign = await sha256(signStr);
+                    
+                    // 构建请求参数
+                    const formData = new FormData();
+                    formData.append('img', pureBase64);
+                    formData.append('appKey', YOUDAO_APP_ID);
+                    formData.append('salt', salt);
+                    formData.append('sign', sign);
+                    formData.append('signType', 'v3');
+                    formData.append('curtime', curtime);
+                    formData.append('docType', 'json');
+                    formData.append('langType', 'auto');
+                    formData.append('imageType', '1');
+                    
+                    // 确定请求URL
+                    let requestUrl = 'https://openapi.youdao.com/ocrapi';
+                    
+                    // 如果选择了使用代理
+                    if (useProxyCheckbox.checked) {
+                        // 使用CORS代理
+                        requestUrl = 'https://cors-anywhere.herokuapp.com/' + requestUrl;
+                    }
+                    
+                    // 发送API请求到有道智云OCR
+                    const response = await fetch(requestUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    // 清除超时定时器
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // 处理API响应
+                    if (data.errorCode !== '0') {
+                        throw new Error(`API错误: ${data.errorCode}`);
+                    } else {
+                        // 提取识别结果
+                        const text = extractTextFromYoudaoResult(data);
+                        resultArea.className = 'result-area success';
+                        resultText.textContent = text || '未识别到文字内容';
+                    }
+                    
+                } catch (error) {
+                    console.error('OCR识别错误:', error);
+                    resultArea.className = 'result-area error';
+                    
+                    let errorMessage = `识别过程中出现错误: ${error.message}`;
+                    
+                    // 提供更具体的错误信息
+                    if (error.message.includes('Failed to fetch')) {
+                        errorMessage += '\n\n可能的原因：\n';
+                        errorMessage += '1. 网络连接问题\n';
+                        errorMessage += '2. CORS限制\n';
+                        errorMessage += '3. 服务器不可用\n\n';
+                        errorMessage += '建议：\n';
+                        errorMessage += '- 检查网络连接\n';
+                        errorMessage += '- 使用本地服务器运行此页面\n';
+                        errorMessage += '- 尝试使用代理服务\n';
+                        errorMessage += '- 检查浏览器控制台获取更多信息\n';
+                    } else if (error.message.includes('HTTP错误: 403')) {
+                        errorMessage += '\n\n可能的原因：\n';
+                        errorMessage += '1. API密钥无效\n';
+                        errorMessage += '2. 服务未开通\n';
+                        errorMessage += '3. 账户余额不足\n\n';
+                        errorMessage += '建议：\n';
+                        errorMessage += '- 检查有道智云控制台\n';
+                        errorMessage += '- 确认API密钥正确\n';
+                        errorMessage += '- 确认OCR服务已开通\n';
+                    }
+                    
+                    resultText.textContent = errorMessage;
+                } finally {
+                    hideLoading();
+                }
+            }
+            
+            // 从有道OCR结果中提取文本
+            function extractTextFromYoudaoResult(ocrData) {
+                let extractedText = '';
+                
+                if (ocrData.Result && ocrData.Result.regions) {
+                    ocrData.Result.regions.forEach(region => {
+                        if (region.lines) {
+                            region.lines.forEach(line => {
+                                if (line.text) {
+                                    extractedText += line.text + '\n';
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                return extractedText.trim();
+            }
+            
+            // 截取Base64字符串
+            function truncate(q) {
+                const len = q.length;
+                if (len <= 20) return q;
+                return q.substring(0, 10) + len + q.substring(len - 10, len);
+            }
+            
+            // SHA256加密函数
+            async function sha256(message) {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                return hashHex;
+            }
+            
+            // 将文件转换为Base64
+            function fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            // 显示加载指示器
+            function showLoading() {
+                loadingIndicator.style.display = 'block';
+            }
+            
+            // 隐藏加载指示器
+            function hideLoading() {
+                loadingIndicator.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
