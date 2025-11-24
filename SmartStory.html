@@ -633,6 +633,7 @@
         let playbackAudio = null; // 用于播放录音的Audio对象
         let playbackTimer = null; // 播放进度更新定时器
         let isPlayingRecording = false; // 跟踪录音播放状态
+        let recordedAudioDuration = 0; // 保存录音的实际时长
 
         // 本地提示词库
         const PROMPT_SUGGESTIONS = [
@@ -807,6 +808,7 @@
                 
                 mediaRecorder.onstop = () => {
                     recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    recordedAudioDuration = recordingSeconds; // 保存录音时长
                     
                     // 启用播放和提交按钮
                     document.getElementById('playRecordingBtn').disabled = false;
@@ -826,6 +828,9 @@
                     clearInterval(recordingTimer);
                     recordingSeconds = 0;
                     document.getElementById('recordingTimer').textContent = '00:00';
+                    
+                    // 更新总时长显示
+                    updateTotalTimeDisplay();
                 };
                 
                 return true;
@@ -836,12 +841,23 @@
             }
         }
 
+        // 更新总时长显示
+        function updateTotalTimeDisplay() {
+            if (recordedAudioDuration > 0) {
+                const totalMinutes = Math.floor(recordedAudioDuration / 60);
+                const totalSeconds = Math.floor(recordedAudioDuration % 60);
+                document.getElementById('totalTime').textContent = 
+                    `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
+            }
+        }
+
         // 开始录音
         async function startRecording() {
             try {
                 // 重置状态
                 audioChunks = [];
                 recordedAudioBlob = null;
+                recordedAudioDuration = 0;
                 
                 // 确保之前的音频播放停止
                 if (playbackAudio) {
@@ -868,6 +884,8 @@
                 document.getElementById('submitRecordingBtn').disabled = true;
                 document.getElementById('playbackProgress').style.display = 'none';
                 document.getElementById('progressBar').style.width = '0%';
+                document.getElementById('currentTime').textContent = '00:00';
+                document.getElementById('totalTime').textContent = '00:00';
                 
                 // 显示录音状态
                 showVoiceStatus('🎤 正在录音中...', 'info');
@@ -948,7 +966,7 @@
                 playbackTimer = setInterval(() => {
                     if (playbackAudio && isPlayingRecording) {
                         const currentTime = playbackAudio.currentTime;
-                        const duration = recordingSeconds; // 使用录音时长作为总时长
+                        const duration = recordedAudioDuration; // 使用实际录音时长
                         
                         // 更新进度条
                         const progressPercent = (currentTime / duration) * 100;
@@ -976,8 +994,8 @@
                     document.getElementById('progressBar').style.width = '100%';
                     
                     // 更新当前时间为总时间
-                    const totalMinutes = Math.floor(recordingSeconds / 60);
-                    const totalSeconds = Math.floor(recordingSeconds % 60);
+                    const totalMinutes = Math.floor(recordedAudioDuration / 60);
+                    const totalSeconds = Math.floor(recordedAudioDuration % 60);
                     document.getElementById('currentTime').textContent = 
                         `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
                 };
@@ -1003,6 +1021,7 @@
             // 重置状态
             audioChunks = [];
             recordedAudioBlob = null;
+            recordedAudioDuration = 0;
             
             // 重置UI
             document.getElementById('playRecordingBtn').disabled = true;
@@ -1011,6 +1030,8 @@
             document.getElementById('recordingTimer').textContent = '00:00';
             document.getElementById('playbackProgress').style.display = 'none';
             document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('currentTime').textContent = '00:00';
+            document.getElementById('totalTime').textContent = '00:00';
             
             // 开始新的录音
             startRecording();
