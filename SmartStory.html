@@ -1015,7 +1015,11 @@
                         // 清除计时器
                         clearInterval(recordingTimer);
                         recordingSeconds = 0;
-                        document.getElementById('recordingTimer').textContent = '00:00';
+                        
+                        // 修改：在计时器位置显示录音时长
+                        document.getElementById('recordingTimer').textContent = `输入语音时长${recordedAudioDuration}秒`;
+                        document.getElementById('recordingTimer').style.color = '#4ecdc4'; // 可以改变颜色以突出显示
+                        document.getElementById('recordingTimer').style.fontWeight = 'bold';
                         
                         // 更新总时长显示
                         updateTotalTimeDisplay();
@@ -1024,15 +1028,14 @@
                         console.error('处理录音数据失败:', error);
                         showVoiceStatus('❌ 处理录音失败', 'error');
                     }
-                };
-                
-                return mediaRecorder;
-            } catch (error) {
-                console.error('初始化媒体录音失败:', error);
-                showVoiceStatus(`❌ ${error.message}`, 'error');
-                return null;
+                };           
+                    return mediaRecorder;
+                } catch (error) {
+                    console.error('初始化媒体录音失败:', error);
+                    showVoiceStatus(`❌ ${error.message}`, 'error');
+                    return null;
+                }
             }
-        }
 
         // 将其他格式的音频转换为WAV格式（优化版）
         async function convertToWav(audioChunks) {
@@ -1206,6 +1209,11 @@
                 const success = await initMediaRecorder();
                 if (!success) return;
                 
+                // 修改：确保计时器显示为初始状态
+                document.getElementById('recordingTimer').textContent = '00:00';
+                document.getElementById('recordingTimer').style.color = ''; // 恢复默认颜色
+                document.getElementById('recordingTimer').style.fontWeight = '';
+                
                 // 开始录音
                 mediaRecorder.start();
                 isRecording = true;
@@ -1247,7 +1255,7 @@
                 showVoiceStatus('❌ 开始录音失败，请重试', 'error');
             }
         }
-
+        
         // 停止录音
         function stopRecording() {
             if (mediaRecorder && isRecording) {
@@ -1361,7 +1369,12 @@
             document.getElementById('playRecordingBtn').disabled = true;
             document.getElementById('submitRecordingBtn').disabled = true;
             document.getElementById('playRecordingBtn').textContent = '▶️ 播放录音';
+            
+            // 修改：重置计时器显示为默认状态
             document.getElementById('recordingTimer').textContent = '00:00';
+            document.getElementById('recordingTimer').style.color = ''; // 恢复默认颜色
+            document.getElementById('recordingTimer').style.fontWeight = '';
+            
             document.getElementById('playbackProgress').style.display = 'none';
             document.getElementById('progressBar').style.width = '0%';
             document.getElementById('currentTime').textContent = '00:00';
@@ -1370,7 +1383,7 @@
             // 开始新的录音
             startRecording();
         }
-
+        
         // 开始声波动画
         function startVoiceAnimation() {
             const visualization = document.getElementById('voiceVisualization');
