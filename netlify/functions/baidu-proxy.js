@@ -52,35 +52,31 @@ exports.handler = async function(event) {
       // 生成有效的 cuid
       const cuid = generateCuid();
       
-      // 修正：将 cuid 和 token 都放在 URL 参数中
-      targetUrl = `https://vop.baidubce.com/server_api?cuid=${encodeURIComponent(cuid)}&token=${accessToken}`;
+      // 修正：使用正确的百度语音识别API端点，不在URL中添加参数
+      targetUrl = 'https://vop.baidubce.com/server_api';
       requestOptions.method = 'POST';
       
       if (event.body) {
         try {
           const requestBody = JSON.parse(event.body);
           
-          // 构建符合百度API要求的请求体
+          // 构建符合百度API要求的完整请求体
           const speechRequestBody = {
             format: requestBody.format || 'wav',
-            rate: requestBody.rate || 16000,
-            channel: requestBody.channel || 1,
+            rate: parseInt(requestBody.rate) || 16000, // 确保是数字类型
+            channel: parseInt(requestBody.channel) || 1, // 确保是数字类型
+            cuid: cuid,
+            token: accessToken,
             speech: requestBody.speech,
-            len: requestBody.len
+            len: parseInt(requestBody.len) || 0
           };
           
-          // 只有在请求体中明确提供了 dev_pid 时才包含
+          // 添加可选的 dev_pid 参数（普通话模型）
           if (requestBody.dev_pid) {
-            speechRequestBody.dev_pid = requestBody.dev_pid;
+            speechRequestBody.dev_pid = parseInt(requestBody.dev_pid);
           }
           
-          console.log('语音识别请求参数:', {
-            format: speechRequestBody.format,
-            rate: speechRequestBody.rate,
-            channel: speechRequestBody.channel,
-            cuid: cuid,
-            data_length: speechRequestBody.len
-          });
+          console.log('语音识别请求参数:', speechRequestBody);
           
           requestOptions.body = JSON.stringify(speechRequestBody);
           
