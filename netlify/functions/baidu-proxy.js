@@ -1,5 +1,12 @@
 // netlify/functions/baidu-proxy.js
 
+// 生成有效的 CUID
+function generateCuid() {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 15);
+  return `netlify-app-${timestamp}-${random}`.substring(0, 256);
+}
+
 exports.handler = async function(event) {
   // 处理 CORS 预检请求
   if (event.httpMethod === 'OPTIONS') {
@@ -42,8 +49,11 @@ exports.handler = async function(event) {
         throw new Error('缺少访问令牌参数');
       }
       
-      // 修正：只保留token在URL中
-      targetUrl = `https://vop.baidubce.com/server_api?token=${accessToken}`;
+      // 生成有效的 cuid
+      const cuid = generateCuid();
+      
+      // 修正：将 cuid 和 token 都放在 URL 参数中
+      targetUrl = `https://vop.baidubce.com/server_api?cuid=${encodeURIComponent(cuid)}&token=${accessToken}`;
       requestOptions.method = 'POST';
       
       if (event.body) {
@@ -55,18 +65,20 @@ exports.handler = async function(event) {
             format: requestBody.format || 'wav',
             rate: requestBody.rate || 16000,
             channel: requestBody.channel || 1,
-            cuid: requestBody.cuid || 'netlify-app',
-            token: accessToken,
             speech: requestBody.speech,
-            len: requestBody.len,
-            dev_pid: requestBody.dev_pid || 1537 // 默认使用普通话模型
+            len: requestBody.len
           };
+          
+          // 只有在请求体中明确提供了 dev_pid 时才包含
+          if (requestBody.dev_pid) {
+            speechRequestBody.dev_pid = requestBody.dev_pid;
+          }
           
           console.log('语音识别请求参数:', {
             format: speechRequestBody.format,
             rate: speechRequestBody.rate,
             channel: speechRequestBody.channel,
-            dev_pid: speechRequestBody.dev_pid,
+            cuid: cuid,
             data_length: speechRequestBody.len
           });
           
