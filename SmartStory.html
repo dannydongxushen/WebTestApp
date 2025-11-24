@@ -794,7 +794,7 @@
         }
         }
 
-        // 提交语音识别
+        // 提交语音识别（修复版）
         async function submitRecording() {
         if (!recordedAudioBlob) {
             showVoiceStatus('❌ 没有可提交的录音', 'error');
@@ -815,18 +815,18 @@
                 try {
                 const base64Audio = reader.result.split(',')[1];
                 
-                // 3. 准备请求数据
+                // 3. 准备请求数据 - 使用百度推荐的参数
                 const requestData = {
-                    format: 'webm',
-                    rate: 16000,
-                    channel: 1,
+                    format: 'wav', // 改为wav格式，百度支持更好
+                    rate: 16000,   // 使用16000Hz采样率
+                    channel: 1,    // 单声道
                     token: accessToken,
                     cuid: 'netlify-story-app',
                     len: recordedAudioBlob.size,
                     speech: base64Audio
                 };
                 
-                console.log('通过Netlify Function提交语音识别...');
+                console.log('通过Netlify Function提交语音识别...', requestData);
                 
                 // 4. 调用Netlify Function进行语音识别
                 const response = await fetch('/.netlify/functions/baidu-proxy/baidu-speech?token=' + accessToken, {
@@ -838,6 +838,8 @@
                 });
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('语音识别API错误响应:', errorText);
                     throw new Error(`语音识别API错误: ${response.status}`);
                 }
                 
@@ -859,7 +861,7 @@
                     
                     resolve(transcript);
                 } else {
-                    throw new Error(`语音识别失败: ${result.err_msg}`);
+                    throw new Error(`语音识别失败: ${result.err_msg} (错误码: ${result.err_no})`);
                 }
                 
                 } catch (error) {
@@ -877,7 +879,7 @@
         }
         }
 
-        // 初始化媒体录音
+// 初始化媒体录音
         async function initMediaRecorder() {
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
