@@ -764,49 +764,71 @@
             return prompt;
         }
 
-        // 百度语音识别 - 获取访问令牌（添加详细调试信息）
         async function getBaiduAccessToken() {
             try {
-                showDebugInfo('正在获取百度语音识别访问令牌...');
+                console.log("开始获取百度Access Token...");
                 
-                const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${CONFIG.baiduSpeech.apiKey}&client_secret=${CONFIG.baiduSpeech.secretKey}`;
-                showDebugInfo(`请求URL: ${url}`);
+                // 调试信息1：检查API密钥是否存在（注意，在生产环境中切勿打印密钥本身！）
+                if (!CONFIG.baiduSpeech.apiKey || !CONFIG.baiduSpeech.secretKey) {
+                    throw new Error("API Key或Secret Key未配置");
+                }
+                console.log("API Key和Secret Key配置检查通过");
+
+                // 构建请求URL
+                const authUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${CONFIG.baiduSpeech.apiKey}&client_secret=${CONFIG.baiduSpeech.secretKey}`;
+                console.log("请求URL:", authUrl);
+
+                // 调试信息2：记录请求发起
+                console.log("正在向百度认证服务器发送请求...");
+                const startTime = Date.now();
                 
-                const response = await fetch(url, {
+                // 使用fetch发送请求
+                const response = await fetch(authUrl, {
                     method: 'POST'
                 });
                 
-                showDebugInfo(`响应状态: ${response.status} ${response.statusText}`);
-                
+                const endTime = Date.now();
+                console.log(`请求完成，耗时: ${endTime - startTime}ms`);
+                console.log("HTTP状态码:", response.status);
+                console.log("HTTP状态文本:", response.statusText);
+
+                // 调试信息3：检查响应是否成功
                 if (!response.ok) {
-                    throw new Error(`HTTP错误: ${response.status}`);
+                    throw new Error(`HTTP错误! 状态: ${response.status}`);
                 }
-                
+
+                // 解析响应数据
                 const data = await response.json();
-                showDebugInfo(`响应数据: ${JSON.stringify(data)}`);
-                
+                console.log("百度API返回的原始数据:", JSON.stringify(data));
+
+                // 调试信息4：检查令牌是否存在
                 if (data.access_token) {
-                    showDebugInfo('成功获取百度访问令牌');
+                    console.log("成功获取到Access Token");
                     return data.access_token;
                 } else {
-                    showDebugInfo(`无法获取百度语音识别访问令牌: ${JSON.stringify(data)}`);
-                    throw new Error('无法获取百度语音识别访问令牌');
+                    // 处理已知的错误码
+                    console.error("获取Access Token失败，错误信息:", data);
+                    if (data.error) {
+                        switch(data.error) {
+                            case 'invalid_client':
+                                throw new Error("客户端认证失败（无效的API Key或Secret Key）");
+                            case 'invalid_request':
+                                throw new Error("请求参数不完整或不正确");
+                            default:
+                                throw new Error(`认证错误: ${data.error_description || data.error}`);
+                        }
+                    }
+                    throw new Error("Access Token不存在于响应中");
                 }
             } catch (error) {
-                showDebugInfo(`获取百度语音识别令牌失败: ${error.message}`);
-                
-                // 检查是否为CORS错误
-                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    showDebugInfo('🔍 这看起来像CORS错误。建议:');
-                    showDebugInfo('1. 检查百度API是否支持浏览器直接调用');
-                    showDebugInfo('2. 考虑使用代理服务器转发请求');
-                    showDebugInfo('3. 检查网络连接是否正常');
+                console.error("获取百度Access Token过程中发生异常:", error);
+                // 特别留意CORS错误，它通常意味着请求被浏览器策略拦截了[citation:9]
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    console.error("这可能是一个CORS错误，请求被浏览器安全策略阻止");
                 }
-                
                 throw error;
             }
         }
-
         // 初始化媒体录音
         async function initMediaRecorder() {
             try {
