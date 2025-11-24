@@ -543,8 +543,8 @@
                     <div class="input-group">
                         <label for="ageGroup">年龄段：</label>
                         <select id="ageGroup">
-                            <option value="3-5岁">3-5岁（幼儿）</option>
-                            <option value="6-8岁" selected>6-8岁（儿童）</option>
+                            <option value="3-5岁" selected>3-5岁（幼儿）</option>
+                            <option value="6-8岁">6-8岁（儿童）</option>
                         </select>
                     </div>
 
@@ -632,6 +632,7 @@
         let maxRecordingTime = 60; // 最大录音时间60秒
         let playbackAudio = null; // 用于播放录音的Audio对象
         let playbackTimer = null; // 播放进度更新定时器
+        let isPlayingRecording = false; // 跟踪录音播放状态
 
         // 本地提示词库
         const PROMPT_SUGGESTIONS = [
@@ -782,72 +783,6 @@
             }
         }
 
-        // 初始化语音识别
-        async function initSpeechRecognition() {
-            try {
-                // 检查浏览器是否支持语音识别
-                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                    throw new Error('您的浏览器不支持语音识别功能，请使用Chrome、Edge等现代浏览器');
-                }
-
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                
-                // 配置识别参数
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.lang = 'zh-CN';
-                
-                // 设置事件处理
-                recognition.onstart = function() {
-                    isRecording = true;
-                    document.getElementById('voiceInputBtn').classList.add('recording');
-                    showVoiceStatus('🎤 正在聆听中...请开始说话', 'info');
-                };
-                
-                recognition.onresult = function(event) {
-                    const transcript = event.results[0][0].transcript;
-                    document.getElementById('keywords').value = transcript;
-                    showVoiceStatus(`✅ 识别成功: "${transcript}"`, 'success');
-                    
-                    // 3秒后隐藏状态消息
-                    setTimeout(() => {
-                        hideVoiceStatus();
-                    }, 3000);
-                };
-                
-                recognition.onerror = function(event) {
-                    console.error('语音识别错误:', event.error);
-                    let errorMessage = '语音识别失败，请重试';
-                    
-                    switch(event.error) {
-                        case 'not-allowed':
-                            errorMessage = '请允许浏览器使用麦克风权限';
-                            break;
-                        case 'no-speech':
-                            errorMessage = '没有检测到语音，请重试';
-                            break;
-                        case 'audio-capture':
-                            errorMessage = '无法访问麦克风，请检查设备';
-                            break;
-                    }
-                    
-                    showVoiceStatus(`❌ ${errorMessage}`, 'error');
-                    stopRecording();
-                };
-                
-                recognition.onend = function() {
-                    stopRecording();
-                };
-                
-                return true;
-            } catch (error) {
-                console.error('初始化语音识别失败:', error);
-                showVoiceStatus(`❌ ${error.message}`, 'error');
-                return false;
-            }
-        }
-
         // 初始化媒体录音
         async function initMediaRecorder() {
             try {
@@ -913,6 +848,8 @@
                     playbackAudio.pause();
                     clearInterval(playbackTimer);
                     document.getElementById('playbackProgress').style.display = 'none';
+                    isPlayingRecording = false;
+                    document.getElementById('playRecordingBtn').textContent = '▶️ 播放录音';
                 }
                 
                 // 重新初始化媒体录音器
@@ -930,6 +867,7 @@
                 document.getElementById('playRecordingBtn').disabled = true;
                 document.getElementById('submitRecordingBtn').disabled = true;
                 document.getElementById('playbackProgress').style.display = 'none';
+                document.getElementById('progressBar').style.width = '0%';
                 
                 // 显示录音状态
                 showVoiceStatus('🎤 正在录音中...', 'info');
@@ -971,6 +909,22 @@
             }
         }
 
+        // 播放/停止录音
+        function togglePlayRecording() {
+            if (!recordedAudioBlob) return;
+            
+            if (isPlayingRecording) {
+                // 停止播放
+                playbackAudio.pause();
+                clearInterval(playbackTimer);
+                isPlayingRecording = false;
+                document.getElementById('playRecordingBtn').textContent = '▶️ 播放录音';
+            } else {
+                // 开始播放
+                playRecording();
+            }
+        }
+
         // 播放录音
         function playRecording() {
             if (recordedAudioBlob) {
@@ -982,19 +936,19 @@
                 
                 const audioURL = URL.createObjectURL(recordedAudioBlob);
                 playbackAudio = new Audio(audioURL);
+                isPlayingRecording = true;
                 
                 // 更新播放按钮状态
-                const playBtn = document.getElementById('playRecordingBtn');
-                playBtn.textContent = '⏸️ 播放中...';
+                document.getElementById('playRecordingBtn').textContent = '⏸️ 停止播放';
                 
                 // 显示播放进度条
                 document.getElementById('playbackProgress').style.display = 'block';
                 
                 // 设置播放进度更新
                 playbackTimer = setInterval(() => {
-                    if (playbackAudio) {
+                    if (playbackAudio && isPlayingRecording) {
                         const currentTime = playbackAudio.currentTime;
-                        const duration = playbackAudio.duration || recordingSeconds;
+                        const duration = recordingSeconds; // 使用录音时长作为总时长
                         
                         // 更新进度条
                         const progressPercent = (currentTime / duration) * 100;
@@ -1016,14 +970,23 @@
                 playbackAudio.play();
                 
                 playbackAudio.onended = () => {
-                    playBtn.textContent = '▶️ 播放录音';
                     clearInterval(playbackTimer);
+                    isPlayingRecording = false;
+                    document.getElementById('playRecordingBtn').textContent = '▶️ 播放录音';
                     document.getElementById('progressBar').style.width = '100%';
+                    
+                    // 更新当前时间为总时间
+                    const totalMinutes = Math.floor(recordingSeconds / 60);
+                    const totalSeconds = Math.floor(recordingSeconds % 60);
+                    document.getElementById('currentTime').textContent = 
+                        `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
                 };
                 
                 playbackAudio.onpause = () => {
-                    playBtn.textContent = '▶️ 播放录音';
-                    clearInterval(playbackTimer);
+                    // 如果是手动暂停，不重置按钮状态（由togglePlayRecording处理）
+                    if (!playbackAudio.ended) {
+                        clearInterval(playbackTimer);
+                    }
                 };
             }
         }
@@ -1034,6 +997,7 @@
             if (playbackAudio) {
                 playbackAudio.pause();
                 clearInterval(playbackTimer);
+                isPlayingRecording = false;
             }
             
             // 重置状态
@@ -1381,7 +1345,7 @@
             document.getElementById('voiceInputBtn').addEventListener('click', toggleRecording);
             
             // 绑定录音控制按钮事件
-            document.getElementById('playRecordingBtn').addEventListener('click', playRecording);
+            document.getElementById('playRecordingBtn').addEventListener('click', togglePlayRecording);
             document.getElementById('reRecordBtn').addEventListener('click', reRecord);
             document.getElementById('submitRecordingBtn').addEventListener('click', submitRecording);
             
