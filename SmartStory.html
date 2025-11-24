@@ -860,7 +860,7 @@
             }
         }
         
-        // 初始化媒体录音
+        // 初始化媒体录音（完整修复版）
         async function initMediaRecorder() {
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -882,19 +882,29 @@
                     } 
                 });
                 
-                // 尝试使用WAV格式，如果浏览器支持的话
-                const wavOptions = { mimeType: 'audio/wav' };
-                let mediaRecorder;
+                let recorderOptions = {};
+                let willNeedConversion = false;
                 
+                // 检测浏览器是否支持WAV格式
                 if (MediaRecorder.isTypeSupported('audio/wav')) {
-                    mediaRecorder = new MediaRecorder(stream, wavOptions);
-                    console.log('使用WAV格式录制');
+                    recorderOptions = { mimeType: 'audio/wav' };
+                    console.log('浏览器支持直接录制WAV格式');
                 } else {
-                    // 回退到默认格式，后续需要转换
-                    mediaRecorder = new MediaRecorder(stream);
-                    console.log('使用默认格式录制，后续需要转换');
+                    // 使用浏览器默认格式（通常是webm），后续需要转换
+                    console.log('浏览器不支持直接录制WAV格式，使用默认格式，后续需要转换');
+                    willNeedConversion = true;
+                    
+                    // 尝试使用常见的支持格式
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                        recorderOptions = { mimeType: 'audio/webm;codecs=opus' };
+                    } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                        recorderOptions = { mimeType: 'audio/webm' };
+                    }
+                    // 如果不指定mimeType，浏览器会使用默认格式
                 }
                 
+                // 使用全局mediaRecorder变量，避免重新声明
+                mediaRecorder = new MediaRecorder(stream, recorderOptions);
                 audioChunks = [];
                 
                 mediaRecorder.ondataavailable = (event) => {
@@ -903,39 +913,57 @@
                     }
                 };
                 
-                mediaRecorder.onstop = () => {
-                    // 创建最终的Blob
-                    const finalBlob = new Blob(audioChunks, { 
-                        type: mediaRecorder.mimeType === 'audio/wav' ? 'audio/wav' : 'audio/webm'
-                    });
-                    
-                    recordedAudioBlob = finalBlob;
-                    recordedAudioDuration = recordingSeconds;
-                    
-                    // 启用播放和提交按钮
-                    document.getElementById('playRecordingBtn').disabled = false;
-                    document.getElementById('submitRecordingBtn').disabled = false;
-                    
-                    // 停止录音动画
-                    stopVoiceAnimation();
-                    
-                    // 更新按钮状态
-                    document.getElementById('voiceInputBtn').textContent = '🎤 语音输入提示词';
-                    document.getElementById('voiceInputBtn').classList.remove('recording');
-                    
-                    // 显示录音成功信息
-                    showVoiceStatus(`✅ 录音完成，时长 ${recordingSeconds} 秒`, 'success');
-                    
-                    // 显示音频信息
-                    showDebugInfo(`音频格式: ${finalBlob.type}, 大小: ${(finalBlob.size/1024).toFixed(2)}KB`);
-                    
-                    // 清除计时器
-                    clearInterval(recordingTimer);
-                    recordingSeconds = 0;
-                    document.getElementById('recordingTimer').textContent = '00:00';
-                    
-                    // 更新总时长显示
-                    updateTotalTimeDisplay();
+                mediaRecorder.onstop = async () => {
+                    try {
+                        let finalBlob;
+                        const originalBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                        
+                        // 显示原始音频信息
+                        const originalFormat = mediaRecorder.mimeType || '未知格式';
+                        const originalSize = (originalBlob.size / 1024).toFixed(2);
+                        
+                        // 如果需要转换且不是WAV格式
+                        if (willNeedConversion && !originalBlob.type.includes('wav')) {
+                            showVoiceStatus('正在转换音频格式为WAV...', 'info');
+                            console.log(`开始格式转换: ${originalFormat} -> audio/wav`);
+                            
+                            finalBlob = await convertToWav(audioChunks);
+                            
+                            // 显示转换后的信息
+                            showDebugInfo(`原始格式: ${originalFormat}, 大小: ${originalSize}KB → 转换后: ${finalBlob.type}, 大小: ${(finalBlob.size/1024).toFixed(2)}KB`);
+                            showVoiceStatus(`✅ 录音完成 (已转换为WAV格式)`, 'success');
+                        } else {
+                            finalBlob = originalBlob;
+                            showDebugInfo(`音频格式: ${finalBlob.type}, 大小: ${(finalBlob.size/1024).toFixed(2)}KB`);
+                            showVoiceStatus(`✅ 录音完成`, 'success');
+                        }
+                        
+                        recordedAudioBlob = finalBlob;
+                        recordedAudioDuration = recordingSeconds;
+                        
+                        // 启用播放和提交按钮
+                        document.getElementById('playRecordingBtn').disabled = false;
+                        document.getElementById('submitRecordingBtn').disabled = false;
+                        
+                        // 停止录音动画
+                        stopVoiceAnimation();
+                        
+                        // 更新按钮状态
+                        document.getElementById('voiceInputBtn').textContent = '🎤 语音输入提示词';
+                        document.getElementById('voiceInputBtn').classList.remove('recording');
+                        
+                        // 清除计时器
+                        clearInterval(recordingTimer);
+                        recordingSeconds = 0;
+                        document.getElementById('recordingTimer').textContent = '00:00';
+                        
+                        // 更新总时长显示
+                        updateTotalTimeDisplay();
+                        
+                    } catch (error) {
+                        console.error('处理录音数据失败:', error);
+                        showVoiceStatus('❌ 处理录音失败', 'error');
+                    }
                 };
                 
                 return mediaRecorder;
@@ -945,57 +973,96 @@
                 return null;
             }
         }
-        
-        // 将其他格式的音频转换为WAV格式
-        async function convertToWav(audioChunks) {
-    return new Promise((resolve) => {
-        // 创建一个临时的Blob用于播放
-        const originalBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const audioUrl = URL.createObjectURL(originalBlob);
-        const audio = new Audio(audioUrl);
-        
-        // 使用AudioContext进行格式转换
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)({
-            sampleRate: 16000 // 设置目标采样率
-        });
-        
-        const reader = new FileReader();
-        reader.onload = async function() {
-            try {
-                // 解码音频数据
-                const audioBuffer = await audioContext.decodeAudioData(reader.result);
-                
-                // 创建新的AudioBuffer，确保是16000Hz采样率和单声道
-                const offlineContext = new OfflineAudioContext({
-                    numberOfChannels: 1, // 单声道
-                    length: audioBuffer.length,
-                    sampleRate: 16000
-                });
-                
-                const source = offlineContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(offlineContext.destination);
-                source.start();
-                
-                // 渲染为新的音频Buffer
-                const renderedBuffer = await offlineContext.startRendering();
-                
-                // 将AudioBuffer转换为WAV格式的Blob
-                const wavBlob = audioBufferToWav(renderedBuffer);
-                resolve(wavBlob);
-                
-            } catch (error) {
-                console.error('音频转换失败:', error);
-                // 如果转换失败，返回原始Blob
-                resolve(originalBlob);
-            }
-        };
-        
-        reader.readAsArrayBuffer(originalBlob);
-    });
-}
 
-        // 将AudioBuffer转换为WAV Blob
+        // 将其他格式的音频转换为WAV格式（优化版）
+        async function convertToWav(audioChunks) {
+            return new Promise((resolve, reject) => {
+                // 创建原始Blob
+                const originalBlob = new Blob(audioChunks);
+                const originalType = audioChunks.length > 0 ? audioChunks[0].type : 'unknown';
+                
+                const reader = new FileReader();
+                reader.onload = async function() {
+                    try {
+                        // 创建AudioContext，指定16000Hz采样率
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                            sampleRate: 16000
+                        });
+                        
+                        // 解码原始音频数据
+                        const audioBuffer = await audioContext.decodeAudioData(reader.result);
+                        console.log(`原始音频信息: 采样率=${audioBuffer.sampleRate}Hz, 声道数=${audioBuffer.numberOfChannels}, 时长=${audioBuffer.duration.toFixed(2)}秒`);
+                        
+                        // 如果已经是16000Hz单声道，直接转换格式
+                        if (audioBuffer.sampleRate === 16000 && audioBuffer.numberOfChannels === 1) {
+                            console.log('音频参数符合要求，直接转换格式');
+                            const wavBlob = audioBufferToWav(audioBuffer);
+                            resolve(wavBlob);
+                            return;
+                        }
+                        
+                        // 需要重新采样或转换声道
+                        console.log('音频需要重新采样或转换声道');
+                        
+                        // 计算目标长度（保持时长不变）
+                        const targetLength = Math.floor(audioBuffer.length * 16000 / audioBuffer.sampleRate);
+                        
+                        // 创建离线上下文进行重新采样
+                        const offlineContext = new OfflineAudioContext({
+                            numberOfChannels: 1, // 单声道
+                            length: targetLength,
+                            sampleRate: 16000
+                        });
+                        
+                        const source = offlineContext.createBufferSource();
+                        
+                        // 如果是多声道，混音为单声道
+                        if (audioBuffer.numberOfChannels > 1) {
+                            const mixedBuffer = audioContext.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
+                            const mixedData = mixedBuffer.getChannelData(0);
+                            
+                            // 简单的声道混合：取各声道平均值
+                            for (let i = 0; i < audioBuffer.length; i++) {
+                                let sum = 0;
+                                for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                                    sum += audioBuffer.getChannelData(channel)[i];
+                                }
+                                mixedData[i] = sum / audioBuffer.numberOfChannels;
+                            }
+                            source.buffer = mixedBuffer;
+                        } else {
+                            source.buffer = audioBuffer;
+                        }
+                        
+                        source.connect(offlineContext.destination);
+                        source.start();
+                        
+                        // 渲染为新的音频Buffer
+                        const renderedBuffer = await offlineContext.startRendering();
+                        console.log(`转换后音频信息: 采样率=${renderedBuffer.sampleRate}Hz, 声道数=${renderedBuffer.numberOfChannels}, 时长=${renderedBuffer.duration.toFixed(2)}秒`);
+                        
+                        // 将AudioBuffer转换为WAV格式的Blob
+                        const wavBlob = audioBufferToWav(renderedBuffer);
+                        resolve(wavBlob);
+                        
+                    } catch (error) {
+                        console.error('音频转换失败:', error);
+                        // 如果转换失败，返回原始Blob
+                        showDebugInfo(`格式转换失败，使用原始格式: ${originalType}`);
+                        resolve(originalBlob);
+                    }
+                };
+                
+                reader.onerror = () => {
+                    console.error('文件读取失败');
+                    reject(new Error('文件读取失败'));
+                };
+                
+                reader.readAsArrayBuffer(originalBlob);
+            });
+        }
+
+        // 将AudioBuffer转换为WAV Blob（保持不变，这个函数是有效的）
         function audioBufferToWav(buffer) {
             const numChannels = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
@@ -1014,31 +1081,18 @@
             const view = new DataView(arrayBuffer);
             
             // WAV文件头
-            // RIFF标识
             writeString(view, 0, 'RIFF');
-            // 文件长度
             view.setUint32(4, totalLength - 8, true);
-            // WAVE标识
             writeString(view, 8, 'WAVE');
-            // fmt chunk
             writeString(view, 12, 'fmt ');
-            // fmt chunk长度
             view.setUint32(16, 16, true);
-            // 音频格式 (PCM)
             view.setUint16(20, format, true);
-            // 声道数
             view.setUint16(22, numChannels, true);
-            // 采样率
             view.setUint32(24, sampleRate, true);
-            // 字节率
             view.setUint32(28, sampleRate * blockAlign, true);
-            // 块对齐
             view.setUint16(32, blockAlign, true);
-            // 位深度
             view.setUint16(34, bitDepth, true);
-            // data chunk
             writeString(view, 36, 'data');
-            // data chunk长度
             view.setUint32(40, dataLength, true);
             
             // 写入PCM数据
@@ -1054,13 +1108,13 @@
             return new Blob([arrayBuffer], { type: 'audio/wav' });
         }
 
-        // 辅助函数：写入字符串到DataView
+        // 辅助函数：写入字符串到DataView（保持不变）
         function writeString(view, offset, string) {
             for (let i = 0; i < string.length; i++) {
                 view.setUint8(offset + i, string.charCodeAt(i));
             }
         }
-
+        
         // 更新总时长显示
         function updateTotalTimeDisplay() {
             if (recordedAudioDuration > 0) {
